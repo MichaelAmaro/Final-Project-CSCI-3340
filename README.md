@@ -1,10 +1,12 @@
-# Event Buddy
+# Vaquero Spotlight
 Help UTRGV students discover campus events, register, and optionally get paired with a buddy to attend together.
 
 
-# Project Overview
-- View academic calandar dates
-- View events being held by orgs
-- View and filter campus events Edinburg or Brownsville or both
-- Match with other students attending the same event
-- Post or read announcements
+# Overview
+Spotlight is a desktop and web application made for UTRGV students.  
+It lets you:
+- Discover upcoming campus events.
+- RSVP instantly and see who else is going.
+- Flip a “Find a Buddy” toggle to be paired with another Vaquero attending the same event.
+- Get reminders so you never miss the fun.
+- The goal: Boost student engagement, and make new friends.
