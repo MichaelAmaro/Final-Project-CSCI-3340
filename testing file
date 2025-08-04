@@ -3,8 +3,3 @@ import sqlite3
 
 root = Tk()
 root.title = ('Union Events reminder')
-
-dataConnect = sqlite3.connect('testData.db')
-cursor = dataConnect.cursor()
-
-cursor.execute()
