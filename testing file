@@ -1,20 +1,340 @@
+#Gemini tkninter test
 import tkinter as tk
+from tkinter import messagebox, font
 
-def say_hello():
-    label.config(text="Hello from Tkinter!")
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# DATA SIMULATION
+# In a real application, this data would come from a server/database.
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-# Create the main window
-root = tk.Tk()
-root.title("Simple Tkinter App")
-root.geometry("300x150")
+# Simulated user database: {username: password}
+users = {
+    "student1": "pass123",
+    "vaquero2": "goUTRGV!",
+    "newuser": "password"
+}
 
-# Create a label
-label = tk.Label(root, text="Click the button!")
-label.pack(pady=20)
 
-# Create a button
-button = tk.Button(root, text="Greet Me", command=say_hello)
-button.pack()
 
-# Run the application
-root.mainloop()
+
+# Simulated events database
+events = [
+    {
+        "id": 1,
+        "name": "Vaquero Roundup",
+        "date": "2025-08-25",
+        "location": "Student Union",
+        "description": "Kick off the new semester with music, food, and games. Meet fellow students and learn about campus organizations.",
+    },
+    {
+        "id": 2,
+        "name": "Tech Symposium",
+        "date": "2025-09-10",
+        "location": "Engineering Building Auditorium",
+        "description": "A showcase of student and faculty projects in technology and engineering. Guest speakers from major tech companies.",
+    },
+    {
+        "id": 3,
+        "name": "Stargazing Night",
+        "date": "2025-09-22",
+        "location": "Physics Observatory",
+        "description": "Join the Astronomy Club for a guided tour of the cosmos. Telescopes will be provided.",
+    },
+    {
+        "id": 4,
+        "name": "Career Fest",
+        "date": "2025-10-05",
+        "location": "University Ballroom",
+        "description": "Meet with recruiters from over 50 companies. Bring your resume and dress to impress!",
+    }
+]
+
+# Simulated RSVP and Buddy data store: {event_id: {username: {"buddy_up": True/False, "paired_with": None/username}}}
+rsvps = {
+    1: {"student1": {"buddy_up": True, "paired_with": None}},
+    2: {},
+    3: {},
+    4: {}
+}
+
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# MAIN APPLICATION CLASS
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class VSpotlightApp(tk.Tk):
+    """The main application window for V Spotlight."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # --- App Configuration ---
+        self.title("V Spotlight - UTRGV Event Hub")
+        self.geometry("900x650")
+        self.configure(bg="#f0f0f0")
+        self.current_user = None
+
+        # --- Font & Color Scheme ---
+        self.title_font = font.Font(family="Helvetica", size=18, weight="bold")
+        self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
+        self.body_font = font.Font(family="Helvetica", size=11)
+        self.utrgv_orange = "#f05023"
+        self.utrgv_blue = "#003e51"
+        self.utrgv_gray = "#4a4a4a"
+
+        # --- Main Container ---
+        container = tk.Frame(self, bg="#f0f0f0")
+        container.pack(side="top", fill="both", expand=True)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        # --- Frame Management ---
+        self.frames = {}
+        for F in (LoginPage, MainPage):
+            page_name = F.__name__
+            frame = F(parent=container, controller=self)
+            self.frames[page_name] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame("LoginPage")
+
+    def show_frame(self, page_name):
+        """Show a frame for the given page name."""
+        frame = self.frames[page_name]
+        if page_name == 'MainPage':
+            frame.refresh_data() # Refresh data when showing the main page
+        frame.tkraise()
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# LOGIN PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class LoginPage(tk.Frame):
+    """Login screen for users."""
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.utrgv_blue)
+        self.controller = controller
+
+        # --- Central Login Frame ---
+        login_frame = tk.Frame(self, bg="white", padx=40, pady=40, relief="ridge", borderwidth=2)
+        login_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # --- Title ---
+        title_label = tk.Label(login_frame, text="V Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label.pack(pady=(0, 20))
+
+        # --- Username ---
+        username_label = tk.Label(login_frame, text="Username", font=controller.body_font, bg="white")
+        username_label.pack(anchor="w")
+        self.username_entry = tk.Entry(login_frame, font=controller.body_font, width=30)
+        self.username_entry.pack(pady=(5, 15))
+
+        # --- Password ---
+        password_label = tk.Label(login_frame, text="Password", font=controller.body_font, bg="white")
+        password_label.pack(anchor="w")
+        self.password_entry = tk.Entry(login_frame, show="*", font=controller.body_font, width=30)
+        self.password_entry.pack(pady=5)
+
+        # --- Login Button ---
+        login_button = tk.Button(login_frame, text="Login", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.login)
+        login_button.pack(pady=20, fill="x")
+
+    def login(self):
+        """Handles the user login logic."""
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+
+        if users.get(username) == password:
+            self.controller.current_user = username
+            messagebox.showinfo("Login Success", f"Welcome, {username}!")
+            self.controller.show_frame("MainPage")
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password.")
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# MAIN APPLICATION PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class MainPage(tk.Frame):
+    """Main application interface showing events and details."""
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg="#f0f0f0")
+        self.controller = controller
+        self.selected_event_id = None
+        self.buddy_up_var = tk.BooleanVar()
+
+        # --- Layout Configuration ---
+        self.columnconfigure(0, weight=1, minsize=300)
+        self.columnconfigure(1, weight=2)
+        self.rowconfigure(1, weight=1)
+
+        # --- Header ---
+        header_frame = tk.Frame(self, bg=controller.utrgv_blue, pady=10)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        header_label = tk.Label(header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_blue, fg="white")
+        header_label.pack()
+
+        # --- Left Panel: Events List ---
+        left_panel = tk.Frame(self, bg="white", padx=10, pady=10)
+        left_panel.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=10)
+        left_panel.rowconfigure(1, weight=1)
+        
+        events_label = tk.Label(left_panel, text="Upcoming Events", font=controller.header_font, bg="white", fg=controller.utrgv_gray)
+        events_label.grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        self.events_listbox = tk.Listbox(left_panel, font=controller.body_font, selectbackground=controller.utrgv_orange, relief="flat")
+        self.events_listbox.grid(row=1, column=0, sticky="nsew")
+        self.events_listbox.bind("<<ListboxSelect>>", self.on_event_select)
+
+        # --- Right Panel: Event Details ---
+        right_panel = tk.Frame(self, bg="white", padx=20, pady=20)
+        right_panel.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
+
+        self.event_title = tk.Label(right_panel, text="Select an Event", font=controller.title_font, bg="white", wraplength=500, justify="left")
+        self.event_title.pack(anchor="w", pady=(0, 10))
+
+        self.event_info = tk.Label(right_panel, text="Details will be shown here.", font=controller.body_font, bg="white", wraplength=500, justify="left")
+        self.event_info.pack(anchor="w", pady=(0, 20))
+        
+        self.event_description = tk.Message(right_panel, text="", font=controller.body_font, bg="white", width=500)
+        self.event_description.pack(anchor="w", pady=(0, 20))
+
+        # --- Interaction Controls ---
+        controls_frame = tk.Frame(right_panel, bg="white")
+        controls_frame.pack(fill="x", pady=20)
+
+        self.rsvp_button = tk.Button(controls_frame, text="RSVP", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.process_rsvp)
+        self.rsvp_button.pack(side="left", padx=(0, 20))
+
+        self.buddy_check = tk.Checkbutton(controls_frame, text="Find a Buddy", variable=self.buddy_up_var, font=controller.body_font, bg="white")
+        self.buddy_check.pack(side="left")
+
+        # --- Status & Attendees ---
+        self.status_label = tk.Label(right_panel, text="", font=controller.header_font, bg="white", fg=controller.utrgv_blue)
+        self.status_label.pack(anchor="w", pady=(20, 10))
+
+        self.attendees_label = tk.Label(right_panel, text="Attendees:", font=controller.header_font, bg="white", fg=controller.utrgv_gray)
+        self.attendees_label.pack(anchor="w")
+        self.attendees_text = tk.Text(right_panel, height=6, width=50, font=controller.body_font, relief="flat", bg="#fafafa")
+        self.attendees_text.pack(anchor="w", fill="x")
+
+    def refresh_data(self):
+        """Populates the event listbox with event names."""
+        self.events_listbox.delete(0, tk.END)
+        for event in events:
+            self.events_listbox.insert(tk.END, event["name"])
+        self.clear_details()
+
+    def on_event_select(self, event):
+        """Updates the details panel when an event is selected."""
+        selection_indices = self.events_listbox.curselection()
+        if not selection_indices:
+            return
+        
+        selected_index = selection_indices[0]
+        self.selected_event_id = events[selected_index]["id"]
+        event_data = events[selected_index]
+        
+        # Update details
+        self.event_title.config(text=event_data["name"])
+        self.event_info.config(text=f"Date: {event_data['date']} | Location: {event_data['location']}")
+        self.event_description.config(text=event_data["description"])
+        
+        self.update_status_and_attendees()
+
+    def update_status_and_attendees(self):
+        """Refreshes the RSVP status and list of attendees for the selected event."""
+        if self.selected_event_id is None:
+            return
+
+        current_user = self.controller.current_user
+        event_rsvps = rsvps.get(self.selected_event_id, {})
+        
+        # Update RSVP status and buddy info
+        if current_user in event_rsvps:
+            user_rsvp = event_rsvps[current_user]
+            status_text = "You are RSVP'd!"
+            if user_rsvp["paired_with"]:
+                status_text += f"\nYour buddy is: {user_rsvp['paired_with']}"
+            elif user_rsvp["buddy_up"]:
+                 status_text += "\nLooking for a buddy..."
+            self.status_label.config(text=status_text, fg=self.controller.utrgv_blue)
+            self.buddy_up_var.set(user_rsvp["buddy_up"])
+        else:
+            self.status_label.config(text="You are not yet RSVP'd for this event.", fg=self.controller.utrgv_gray)
+            self.buddy_up_var.set(False)
+
+        # Update attendees list
+        self.attendees_text.config(state=tk.NORMAL)
+        self.attendees_text.delete("1.0", tk.END)
+        attendee_list = list(event_rsvps.keys())
+        if attendee_list:
+            self.attendees_text.insert(tk.END, ", ".join(attendee_list))
+        else:
+            self.attendees_text.insert(tk.END, "No one has RSVP'd yet. Be the first!")
+        self.attendees_text.config(state=tk.DISABLED)
+
+    def process_rsvp(self):
+        """Handles the RSVP logic and buddy pairing."""
+        if self.selected_event_id is None:
+            messagebox.showwarning("No Event Selected", "Please select an event from the list first.")
+            return
+
+        current_user = self.controller.current_user
+        wants_buddy = self.buddy_up_var.get()
+        event_rsvps = rsvps.setdefault(self.selected_event_id, {})
+
+        # If user is already RSVP'd, this is just an update
+        if current_user in event_rsvps:
+             event_rsvps[current_user]["buddy_up"] = wants_buddy
+             messagebox.showinfo("Updated", "Your buddy preference has been updated.")
+        else: # New RSVP
+            event_rsvps[current_user] = {"buddy_up": wants_buddy, "paired_with": None}
+            messagebox.showinfo("Success!", "You have successfully RSVP'd.")
+
+        # Buddy Pairing Logic
+        if wants_buddy:
+            self.find_buddy(current_user)
+
+        self.update_status_and_attendees()
+    
+    def find_buddy(self, user):
+        """Simple logic to find and pair a buddy for the selected event."""
+        event_rsvps = rsvps[self.selected_event_id]
+        
+        # Check if user is already paired
+        if event_rsvps[user]["paired_with"]:
+            return
+
+        # Find another user who wants a buddy and is not paired
+        for potential_buddy, details in event_rsvps.items():
+            if potential_buddy != user and details["buddy_up"] and details["paired_with"] is None:
+                # Pair them up!
+                event_rsvps[user]["paired_with"] = potential_buddy
+                event_rsvps[potential_buddy]["paired_with"] = user
+                messagebox.showinfo("Buddy Found!", f"You've been paired with {potential_buddy} for this event!")
+                break
+
+    def clear_details(self):
+        """Clears the event details panel."""
+        self.selected_event_id = None
+        self.event_title.config(text="Select an Event")
+        self.event_info.config(text="Details will be shown here.")
+        self.event_description.config(text="")
+        self.status_label.config(text="")
+        self.attendees_text.config(state=tk.NORMAL)
+        self.attendees_text.delete("1.0", tk.END)
+        self.attendees_text.config(state=tk.DISABLED)
+        self.buddy_up_var.set(False)
+
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# APPLICATION STARTUP
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+if __name__ == "__main__":
+    app = VSpotlightApp()
+    app.mainloop()
+
