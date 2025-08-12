@@ -79,8 +79,8 @@ class VSpotlightApp(tk.Tk):
         self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
         self.body_font = font.Font(family="Helvetica", size=11)
         self.utrgv_orange = "#f05023"
-        self.utrgv_blue = "#f0f0f0"
-        self.utrgv_gray = "#4a4a4a"
+        self.utrgv_background = "#9E9B9B"
+        self.utrgv_gray = "#6C6C6C"
 
         # --- Main Container ---
         container = tk.Frame(self, bg="#f0f0f0")
@@ -113,7 +113,7 @@ class LoginPage(tk.Frame):
     """Login screen for users."""
 
     def __init__(self, parent, controller):
-        super().__init__(parent, bg=controller.utrgv_blue)
+        super().__init__(parent, bg=controller.utrgv_background)
         self.controller = controller
 
         # --- Central Login Frame ---
@@ -171,9 +171,9 @@ class MainPage(tk.Frame):
         self.rowconfigure(1, weight=1)
 
         # --- Header ---
-        header_frame = tk.Frame(self, bg=controller.utrgv_blue, pady=10)
+        header_frame = tk.Frame(self, bg=controller.utrgv_background, pady=10)
         header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
-        header_label = tk.Label(header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_blue, fg="white")
+        header_label = tk.Label(header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_background, fg="white")
         header_label.pack()
 
         # --- Left Panel: Events List ---
@@ -212,7 +212,7 @@ class MainPage(tk.Frame):
         self.buddy_check.pack(side="left")
 
         # --- Status & Attendees ---
-        self.status_label = tk.Label(right_panel, text="", font=controller.header_font, bg="white", fg=controller.utrgv_blue)
+        self.status_label = tk.Label(right_panel, text="", font=controller.header_font, bg="white", fg=controller.utrgv_background)
         self.status_label.pack(anchor="w", pady=(20, 10))
 
         self.attendees_label = tk.Label(right_panel, text="Attendees:", font=controller.header_font, bg="white", fg=controller.utrgv_gray)
@@ -260,7 +260,7 @@ class MainPage(tk.Frame):
                 status_text += f"\nYour buddy is: {user_rsvp['paired_with']}"
             elif user_rsvp["buddy_up"]:
                  status_text += "\nLooking for a buddy..."
-            self.status_label.config(text=status_text, fg=self.controller.utrgv_blue)
+            self.status_label.config(text=status_text, fg=self.controller.utrgv_background)
             self.buddy_up_var.set(user_rsvp["buddy_up"])
         else:
             self.status_label.config(text="You are not yet RSVP'd for this event.", fg=self.controller.utrgv_gray)
