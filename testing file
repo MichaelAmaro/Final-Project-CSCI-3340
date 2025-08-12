@@ -79,7 +79,7 @@ class VSpotlightApp(tk.Tk):
         self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
         self.body_font = font.Font(family="Helvetica", size=11)
         self.utrgv_orange = "#f05023"
-        self.utrgv_blue = "#003e51"
+        self.utrgv_blue = "#f0f0f0"
         self.utrgv_gray = "#4a4a4a"
 
         # --- Main Container ---
