@@ -4,36 +4,43 @@ from tkinter import messagebox, font
 import sqlite3
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-# DATA SIMULATION
-# In a real application, this data would come from a server/database.
+# DATABASE SETUP
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-# Simulated user database: {username: password}
-users = {
-    "student1": "pass123",
-    "vaquero2": "goUTRGV!",
-    "newuser": "password"
-}
+# Create the studentusers table if it doesn't exist
+with sqlite3.connect('Spotlight.db') as dataConnect:
+    cursor = dataConnect.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS studentuser(
+            first_name TEXT,
+            last_name TEXT,
+            student_id TEXT,
+            email TEXT PRIMARY KEY,
+            major TEXT,
+            password TEXT
+        )
+    """)
+    dataConnect.commit()
 
-#creating a database 
-dataConnect = sqlite3.connect('Spotlight.db')
-cursor = dataConnect.cursor()
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# LOAD USERS FROM DATABASE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS( 
-               first_name TEXT
-               last_name TEXT
-               student_id TEXT
-               email TEXT
-            )
-               ''')
-#commiting changes 
-dataConnect.commit()
-dataConnect.close()
+def load_users():
+    users = {}
+    with sqlite3.connect('Spotlight.db') as dataConnect:
+        cursor = dataConnect.cursor()
+        cursor.execute("SELECT email, password FROM studentuser")
+        for email, password in cursor.fetchall():
+            users[email] = password
+    return users
 
+users = load_users()
 
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# EVENTS DATA
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-# Simulated events database
 events = [
     {
         "id": 1,
@@ -65,14 +72,12 @@ events = [
     }
 ]
 
-# Simulated RSVP and Buddy data store: {event_id: {username: {"buddy_up": True/False, "paired_with": None/username}}}
 rsvps = {
     1: {"student1": {"buddy_up": True, "paired_with": None}},
     2: {},
     3: {},
     4: {}
 }
-
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # MAIN APPLICATION CLASS
@@ -106,7 +111,7 @@ class VSpotlightApp(tk.Tk):
 
         # --- Frame Management ---
         self.frames = {}
-        for F in (LoginPage, MainPage):
+        for F in (LoginPage, MainPage, RegisterPage):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -120,6 +125,10 @@ class VSpotlightApp(tk.Tk):
         if page_name == 'MainPage':
             frame.refresh_data() # Refresh data when showing the main page
         frame.tkraise()
+
+    def reload_users(self):
+        global users
+        users = load_users()
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # LOGIN PAGE
@@ -141,7 +150,7 @@ class LoginPage(tk.Frame):
         title_label.pack(pady=(0, 20))
 
         # --- Username ---
-        username_label = tk.Label(login_frame, text="Username", font=controller.body_font, bg="white")
+        username_label = tk.Label(login_frame, text="Username (Email)", font=controller.body_font, bg="white")
         username_label.pack(anchor="w")
         self.username_entry = tk.Entry(login_frame, font=controller.body_font, width=30)
         self.username_entry.pack(pady=(5, 15))
@@ -156,17 +165,119 @@ class LoginPage(tk.Frame):
         login_button = tk.Button(login_frame, text="Login", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.login)
         login_button.pack(pady=20, fill="x")
 
+        # --- Register Button ---
+        register_button = tk.Button(login_frame, text="Register New User", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=lambda: controller.show_frame("RegisterPage"))
+        register_button.pack(pady=(0, 10), fill="x")
+
     def login(self):
         """Handles the user login logic."""
         username = self.username_entry.get()
         password = self.password_entry.get()
 
-        if users.get(username) == password:
-            self.controller.current_user = username
-            messagebox.showinfo("Login Success", f"Welcome, {username}!")
-            self.controller.show_frame("MainPage")
-        else:
-            messagebox.showerror("Login Failed", "Invalid username or password.")
+        # Check credentials from database
+        with sqlite3.connect('Spotlight.db') as dataConnect:
+            cursor = dataConnect.cursor()
+            cursor.execute("SELECT password FROM studentuser WHERE email=?", (username,))
+            row = cursor.fetchone()
+            if row and row[0] == password:
+                self.controller.current_user = username
+                messagebox.showinfo("Login Success", f"Welcome, {username}!")
+                self.controller.show_frame("MainPage")
+            else:
+                messagebox.showerror("Login Failed", "Invalid username or password.")
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# REGISTRATION PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+class RegisterPage(tk.Frame):
+    """Registration screen for new users."""
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.utrgv_background)
+        self.controller = controller
+
+        # --- Central Registration Frame ---
+        reg_frame = tk.Frame(self, bg="white", padx=40, pady=30, relief="ridge", borderwidth=2)
+        reg_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        title_label = tk.Label(reg_frame, text="Create New Account", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label.pack(pady=(0, 20))
+
+        # --- Input Fields ---
+        fields = ["First Name", "Last Name", "Student ID", "Student Email", "Major", "Password", "Confirm Password"]
+        self.entries = {}
+        for field in fields:
+            label = tk.Label(reg_frame, text=field, font=controller.body_font, bg="white")
+            label.pack(anchor="w", padx=5, pady=(5,0))
+            entry = tk.Entry(reg_frame, font=controller.body_font, width=40)
+            if "Password" in field:
+                entry.config(show="*")
+            entry.pack(anchor="w", padx=5, pady=(0,5))
+            self.entries[field] = entry
+
+        # --- Button Frame ---
+        button_frame = tk.Frame(reg_frame, bg="white")
+        button_frame.pack(pady=20, fill="x")
+
+        # --- Submit Button ---
+        submit_button = tk.Button(button_frame, text="Submit", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.register_user)
+        submit_button.pack(side="left", expand=True, padx=(0, 5))
+
+        # --- Back to Login Button ---
+        back_button = tk.Button(button_frame, text="Back to Login", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=lambda: controller.show_frame("LoginPage"))
+        back_button.pack(side="right", expand=True, padx=(5, 0))
+
+    def register_user(self):
+        """Handles the logic for registering a new user."""
+        # Retrieve data from entries
+        first_name = self.entries["First Name"].get()
+        last_name = self.entries["Last Name"].get()
+        student_id = self.entries["Student ID"].get()
+        email = self.entries["Student Email"].get()
+        major = self.entries["Major"].get()
+        password = self.entries["Password"].get()
+        confirm_password = self.entries["Confirm Password"].get()
+
+        # --- Validation ---
+        if not all([first_name, last_name, student_id, email, major, password, confirm_password]):
+            messagebox.showerror("Error", "All fields must be filled out.")
+            return
+        
+        if password != confirm_password:
+            messagebox.showerror("Error", "Passwords do not match.")
+            return
+
+        # Check if email already exists in database
+        with sqlite3.connect('Spotlight.db') as dataConnect:
+            cursor = dataConnect.cursor()
+            cursor.execute("SELECT email FROM studentuser WHERE email=?", (email,))
+            if cursor.fetchone():
+                messagebox.showerror("Error", "An account with this email already exists.")
+                return
+
+            # --- Add to Database ---
+            try:
+                cursor.execute(
+                    "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password) VALUES (?, ?, ?, ?, ?, ?)",
+                    (first_name, last_name, student_id, email, major, password)
+                )
+                dataConnect.commit()
+            except sqlite3.IntegrityError:
+                messagebox.showerror("Error", "A student with this ID or Email already exists in the database.")
+                return
+            except Exception as e:
+                messagebox.showerror("Database Error", f"An error occurred: {e}")
+                return
+
+        # --- Add to simulated user dictionary ---
+        self.controller.reload_users()
+
+        messagebox.showinfo("Success", "Account created successfully! Please log in.")
+        
+        # Clear all entry fields
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
+
+        self.controller.show_frame("LoginPage")
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # MAIN APPLICATION PAGE
