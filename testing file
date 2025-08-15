@@ -19,6 +19,17 @@ with sqlite3.connect('Spotlight.db') as dataConnect:
             password TEXT
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS organizationuser(
+                   first_name TEXT,
+                   last_name TEXT,
+                   student_id TEXT,
+                   email TEXT PRIMARY KEY,
+                   organization TEXT,
+                   password TEXT
+                   )
+                   """)
     dataConnect.commit()
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
