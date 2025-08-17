@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox, font
 import sqlite3
+import calendar
+from datetime import datetime
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # DATABASE SETUP
@@ -19,17 +21,6 @@ with sqlite3.connect('Spotlight.db') as dataConnect:
             password TEXT
         )
     """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS organizationuser(
-                   first_name TEXT,
-                   last_name TEXT,
-                   student_id TEXT,
-                   email TEXT PRIMARY KEY,
-                   organization TEXT,
-                   password TEXT
-                   )
-                   """)
     dataConnect.commit()
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -123,7 +114,7 @@ class VSpotlightApp(tk.Tk):
 
         # --- Frame Management ---
         self.frames = {}
-        for F in (LoginPage, MainPage, RegisterPage):
+        for F in (LoginPage, MainPage, RegisterPage, CalendarPage):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -134,8 +125,9 @@ class VSpotlightApp(tk.Tk):
     def show_frame(self, page_name):
         """Show a frame for the given page name."""
         frame = self.frames[page_name]
-        if page_name == 'MainPage':
-            frame.refresh_data() # Refresh data when showing the main page
+        # Refresh data when showing the main page or calendar page
+        if page_name in ['MainPage', 'CalendarPage']:
+            frame.refresh_data() 
         frame.tkraise()
 
     def reload_users(self):
@@ -321,7 +313,12 @@ class MainPage(tk.Frame):
         header_frame = tk.Frame(self, bg=controller.utrgv_background, pady=10)
         header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
         header_label = tk.Label(header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_background, fg="white")
-        header_label.pack()
+        header_label.pack(side="left", padx=20)
+
+        # --- Calendar Button ---
+        calendar_button = tk.Button(header_frame, text="View Calendar", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=lambda: controller.show_frame("CalendarPage"))
+        calendar_button.pack(side="right", padx=20)
+
 
         # --- Left Panel: Events List ---
         left_panel = tk.Frame(self, bg="white", padx=10, pady=10)
@@ -476,6 +473,143 @@ class MainPage(tk.Frame):
         self.attendees_text.config(state=tk.DISABLED)
         self.buddy_up_var.set(False)
 
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# CALENDAR PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+class CalendarPage(tk.Frame):
+    """Displays a monthly event calendar."""
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg="#f0f0f0")
+        self.controller = controller
+        self.year = datetime.now().year
+        self.month = datetime.now().month
+        
+        # To match event data, let's start in August 2025
+        self.year = 2025
+        self.month = 8
+
+        self.event_dates = {datetime.strptime(e["date"], "%Y-%m-%d").date() for e in events}
+
+        # --- Main Layout ---
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=2)
+        self.rowconfigure(1, weight=1)
+
+        # --- Header ---
+        header_frame = tk.Frame(self, bg=controller.utrgv_background, pady=10)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        header_label = tk.Label(header_frame, text="Event Calendar", font=controller.title_font, bg=controller.utrgv_background, fg="white")
+        header_label.pack(side="left", padx=20)
+        back_button = tk.Button(header_frame, text="Back to List", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=lambda: controller.show_frame("MainPage"))
+        back_button.pack(side="right", padx=20)
+
+        # --- Left Panel: Calendar ---
+        calendar_panel = tk.Frame(self, bg="white", padx=10, pady=10)
+        calendar_panel.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=10)
+
+        # Month Navigation
+        nav_frame = tk.Frame(calendar_panel, bg="white")
+        nav_frame.pack(pady=10)
+        prev_button = tk.Button(nav_frame, text="<", command=self.prev_month, font=controller.header_font)
+        prev_button.pack(side="left")
+        self.month_label = tk.Label(nav_frame, text="", font=controller.title_font, bg="white", width=20)
+        self.month_label.pack(side="left", padx=10)
+        next_button = tk.Button(nav_frame, text=">", command=self.next_month, font=controller.header_font)
+        next_button.pack(side="left")
+
+        # Calendar Grid
+        self.calendar_frame = tk.Frame(calendar_panel, bg="white")
+        self.calendar_frame.pack()
+
+        # --- Right Panel: Event Details for Selected Day ---
+        details_panel = tk.Frame(self, bg="white", padx=20, pady=20)
+        details_panel.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
+        self.details_label = tk.Label(details_panel, text="Select a date to see events", font=controller.header_font, bg="white")
+        self.details_label.pack(anchor="w")
+        self.details_text = tk.Text(details_panel, font=controller.body_font, bg="#fafafa", relief="flat", wrap="word")
+        self.details_text.pack(fill="both", expand=True, pady=10)
+        self.details_text.config(state=tk.DISABLED)
+
+    def draw_calendar(self):
+        # Clear previous calendar
+        for widget in self.calendar_frame.winfo_children():
+            widget.destroy()
+
+        # Update month label
+        self.month_label.config(text=f"{calendar.month_name[self.month]} {self.year}")
+
+        # Day of the week headers
+        days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        for i, day in enumerate(days):
+            lbl = tk.Label(self.calendar_frame, text=day, font=self.controller.header_font, bg="white")
+            lbl.grid(row=0, column=i, padx=5, pady=5)
+
+        # Create day buttons
+        month_days = calendar.monthcalendar(self.year, self.month)
+        for row_idx, week in enumerate(month_days, 1):
+            for col_idx, day_num in enumerate(week):
+                if day_num == 0:
+                    continue
+                
+                day_date = datetime(self.year, self.month, day_num).date()
+                btn_bg = "white"
+                btn_fg = "black"
+                btn_font = self.controller.body_font
+                
+                if day_date in self.event_dates:
+                    btn_bg = self.controller.utrgv_orange
+                    btn_fg = "white"
+                    btn_font = font.Font(family="Helvetica", size=11, weight="bold")
+
+                btn = tk.Button(self.calendar_frame, text=str(day_num), width=4, height=2,
+                                bg=btn_bg, fg=btn_fg, font=btn_font,
+                                command=lambda d=day_num: self.show_day_events(d))
+                btn.grid(row=row_idx, column=col_idx, padx=2, pady=2)
+
+    def prev_month(self):
+        self.month -= 1
+        if self.month == 0:
+            self.month = 12
+            self.year -= 1
+        self.draw_calendar()
+        self.clear_details()
+
+    def next_month(self):
+        self.month += 1
+        if self.month == 13:
+            self.month = 1
+            self.year += 1
+        self.draw_calendar()
+        self.clear_details()
+
+    def show_day_events(self, day):
+        selected_date_str = f"{self.year}-{self.month:02d}-{day:02d}"
+        self.details_label.config(text=f"Events for {selected_date_str}")
+        
+        day_events = [e for e in events if e["date"] == selected_date_str]
+        
+        self.details_text.config(state=tk.NORMAL)
+        self.details_text.delete("1.0", tk.END)
+        if day_events:
+            for event in day_events:
+                self.details_text.insert(tk.END, f"Event: {event['name']}\n")
+                self.details_text.insert(tk.END, f"Location: {event['location']}\n")
+                self.details_text.insert(tk.END, f"Description: {event['description']}\n\n")
+        else:
+            self.details_text.insert(tk.END, "No events scheduled for this day.")
+        self.details_text.config(state=tk.DISABLED)
+
+    def clear_details(self):
+        self.details_label.config(text="Select a date to see events")
+        self.details_text.config(state=tk.NORMAL)
+        self.details_text.delete("1.0", tk.END)
+        self.details_text.config(state=tk.DISABLED)
+
+    def refresh_data(self):
+        """Called when the frame is shown."""
+        self.event_dates = {datetime.strptime(e["date"], "%Y-%m-%d").date() for e in events}
+        self.draw_calendar()
+        self.clear_details()
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # APPLICATION STARTUP
