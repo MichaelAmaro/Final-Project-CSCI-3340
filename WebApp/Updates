@@ -1,0 +1,7 @@
+So far I’ve:
+Installed Django and set up the project 
+Created an app, defined basic views, and added a couple of routes
+Built a Post model and set up the Django admin (superuser: lucianarflores)
+Designed a user registration form that saves new users with UTRGV emails into the database
+Redirected users after successful registration 
+Currently working on the login and logout functionality 
