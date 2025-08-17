@@ -1,4 +1,4 @@
-# Vaquero Spotlight
+#  Spotlight
 Help UTRGV students discover campus events, register, and optionally get paired with a buddy to attend together.
 
 
