@@ -23,6 +23,39 @@ with sqlite3.connect('Spotlight.db') as dataConnect:
     """)
     dataConnect.commit()
 
+# --- DATABASE MIGRATION: Add role and organization columns if not exist ---
+with sqlite3.connect('Spotlight.db') as conn:
+    cursor = conn.cursor()
+    # Add role column if not exists
+    cursor.execute("PRAGMA table_info(studentuser)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "role" not in columns:
+        cursor.execute("ALTER TABLE studentuser ADD COLUMN role TEXT DEFAULT 'student'")
+    if "organization" not in columns:
+        cursor.execute("ALTER TABLE studentuser ADD COLUMN organization TEXT")
+    # Create org_requests table if not exists
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS org_requests(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT,
+            organization TEXT,
+            status TEXT DEFAULT 'pending'
+        )
+    """)
+    conn.commit()
+
+# --- Ensure dean user exists ---
+with sqlite3.connect('Spotlight.db') as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM studentuser WHERE email=?", ("dean@utrgv.edu",))
+    if not cursor.fetchone():
+        cursor.execute(
+            "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("dean", "pelton", "00000000", "dean@utrgv.edu", "Administration", "dalmatians", "dean")
+        )
+        conn.commit()
+
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # LOAD USERS FROM DATABASE
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -298,6 +331,8 @@ class RegisterPage(tk.Frame):
 class MainPage(tk.Frame):
     """Main application interface showing events and details."""
 
+    
+
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#f0f0f0")
         self.controller = controller
@@ -319,6 +354,14 @@ class MainPage(tk.Frame):
         calendar_button = tk.Button(header_frame, text="View Calendar", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=lambda: controller.show_frame("CalendarPage"))
         calendar_button.pack(side="right", padx=20)
 
+        # --- Apply for Organization Button ---
+        apply_org_button = tk.Button(header_frame, text="Apply as Organization", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=self.open_org_application)
+        apply_org_button.pack(side="right", padx=10)
+
+        # --- Dean Approval Button ---
+        if self.controller.current_user == "dean@utrgv.edu":
+            approve_button = tk.Button(header_frame, text="Approve Org Requests", font=controller.header_font, bg="#228B22", fg="white", command=self.open_approval_window)
+            approve_button.pack(side="right", padx=10)
 
         # --- Left Panel: Events List ---
         left_panel = tk.Frame(self, bg="white", padx=10, pady=10)
@@ -363,6 +406,42 @@ class MainPage(tk.Frame):
         self.attendees_label.pack(anchor="w")
         self.attendees_text = tk.Text(right_panel, height=6, width=50, font=controller.body_font, relief="flat", bg="#fafafa")
         self.attendees_text.pack(anchor="w", fill="x")
+
+        
+    def open_approval_window(self):
+        """Dean reviews and approves org user requests."""
+        win = tk.Toplevel(self)
+        win.title("Approve Organization Requests")
+        win.geometry("400x350")
+        with sqlite3.connect('Spotlight.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, email, organization FROM org_requests WHERE status='pending'")
+            requests = cursor.fetchall()
+        if not requests:
+            tk.Label(win, text="No pending requests.").pack(pady=20)
+            return
+        for req in requests:
+            frame = tk.Frame(win, pady=5)
+            frame.pack(fill="x", padx=10)
+            tk.Label(frame, text=f"{req[1]} ({req[2]}) - {req[3]}", anchor="w").pack(side="left")
+            def approve_closure(req=req):
+                def approve():
+                    # Approve: add as organization user
+                    with sqlite3.connect('Spotlight.db') as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE org_requests SET status='approved' WHERE id=?", (req[0],))
+                        # Create user if not exists
+                        cursor.execute("SELECT * FROM studentuser WHERE email=?", (req[2],))
+                        if not cursor.fetchone():
+                            cursor.execute(
+                                "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password, role, organization) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                (req[1], "", "", req[2], req[3], "changeme", "organization", req[3])
+                            )
+                        conn.commit()
+                    messagebox.showinfo("Approved", f"{req[2]} is now an Organization user.", parent=win)
+                    win.destroy()
+                return approve
+            tk.Button(frame, text="Approve", bg="#228B22", fg="white", command=approve_closure()).pack(side="right")
 
     def refresh_data(self):
         """Populates the event listbox with event names."""
@@ -472,6 +551,70 @@ class MainPage(tk.Frame):
         self.attendees_text.delete("1.0", tk.END)
         self.attendees_text.config(state=tk.DISABLED)
         self.buddy_up_var.set(False)
+
+    def open_org_application(self):
+        """Open a dialog to apply as an organization user."""
+        app_win = tk.Toplevel(self)
+        app_win.title("Organization Application")
+        app_win.geometry("350x250")
+        tk.Label(app_win, text="Name:").pack(anchor="w", padx=10, pady=(10,0))
+        name_entry = tk.Entry(app_win, width=30)
+        name_entry.pack(padx=10)
+        tk.Label(app_win, text="Email:").pack(anchor="w", padx=10, pady=(10,0))
+        email_entry = tk.Entry(app_win, width=30)
+        email_entry.pack(padx=10)
+        tk.Label(app_win, text="Organization:").pack(anchor="w", padx=10, pady=(10,0))
+        org_entry = tk.Entry(app_win, width=30)
+        org_entry.pack(padx=10)
+        def submit():
+            name = name_entry.get().strip()
+            email = email_entry.get().strip()
+            org = org_entry.get().strip()
+            if not all([name, email, org]):
+                messagebox.showerror("Error", "All fields are required.", parent=app_win)
+                return
+            with sqlite3.connect('Spotlight.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO org_requests (name, email, organization) VALUES (?, ?, ?)", (name, email, org))
+                conn.commit()
+            messagebox.showinfo("Submitted", "Your application has been submitted for approval.", parent=app_win)
+            app_win.destroy()
+        tk.Button(app_win, text="Submit", command=submit, bg="#f05023", fg="white").pack(pady=20)
+
+    def open_approval_window(self):
+        """Dean reviews and approves org user requests."""
+        win = tk.Toplevel(self)
+        win.title("Approve Organization Requests")
+        win.geometry("400x350")
+        with sqlite3.connect('Spotlight.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, email, organization FROM org_requests WHERE status='pending'")
+            requests = cursor.fetchall()
+        if not requests:
+            tk.Label(win, text="No pending requests.").pack(pady=20)
+            return
+        for req in requests:
+            frame = tk.Frame(win, pady=5)
+            frame.pack(fill="x", padx=10)
+            tk.Label(frame, text=f"{req[1]} ({req[2]}) - {req[3]}", anchor="w").pack(side="left")
+            def approve_closure(req=req):
+                def approve():
+                    # Approve: add as organization user
+                    with sqlite3.connect('Spotlight.db') as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE org_requests SET status='approved' WHERE id=?", (req[0],))
+                        # Create user if not exists
+                        cursor.execute("SELECT * FROM studentuser WHERE email=?", (req[2],))
+                        if not cursor.fetchone():
+                            cursor.execute(
+                                "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password, role, organization) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                (req[1], "", "", req[2], req[3], "changeme", "organization", req[3])
+                            )
+                        conn.commit()
+                    messagebox.showinfo("Approved", f"{req[2]} is now an Organization user.", parent=win)
+                    win.destroy()
+                return approve
+            tk.Button(frame, text="Approve", bg="#228B22", fg="white", command=approve_closure()).pack(side="right")
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # CALENDAR PAGE

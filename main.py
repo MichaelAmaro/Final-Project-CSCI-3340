@@ -1,1 +1,763 @@
-print('This will be filled soon.')
+import tkinter as tk
+from tkinter import messagebox, font
+import sqlite3
+import calendar
+from datetime import datetime
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# DATABASE SETUP
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+# Create the studentusers table if it doesn't exist
+with sqlite3.connect('Spotlight.db') as dataConnect:
+    cursor = dataConnect.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS studentuser(
+            first_name TEXT,
+            last_name TEXT,
+            student_id TEXT,
+            email TEXT PRIMARY KEY,
+            major TEXT,
+            password TEXT
+        )
+    """)
+    dataConnect.commit()
+
+# --- DATABASE MIGRATION: Add role and organization columns if not exist ---
+with sqlite3.connect('Spotlight.db') as conn:
+    cursor = conn.cursor()
+    # Add role column if not exists
+    cursor.execute("PRAGMA table_info(studentuser)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "role" not in columns:
+        cursor.execute("ALTER TABLE studentuser ADD COLUMN role TEXT DEFAULT 'student'")
+    if "organization" not in columns:
+        cursor.execute("ALTER TABLE studentuser ADD COLUMN organization TEXT")
+    # Create org_requests table if not exists
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS org_requests(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT,
+            organization TEXT,
+            status TEXT DEFAULT 'pending'
+        )
+    """)
+    conn.commit()
+
+# --- Ensure dean user exists ---
+with sqlite3.connect('Spotlight.db') as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM studentuser WHERE email=?", ("dean@utrgv.edu",))
+    if not cursor.fetchone():
+        cursor.execute(
+            "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("dean", "pelton", "00000000", "dean@utrgv.edu", "Administration", "dalmatians", "dean")
+        )
+        conn.commit()
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# LOAD USERS FROM DATABASE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+def load_users():
+    """Loads user emails and passwords from the database into a dictionary."""
+    users = {}
+    with sqlite3.connect('Spotlight.db') as dataConnect:
+        cursor = dataConnect.cursor()
+        cursor.execute("SELECT email, password FROM studentuser")
+        for email, password in cursor.fetchall():
+            users[email] = password
+    return users
+
+users = load_users()
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# EVENTS DATA
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+events = [
+    {
+        "id": 1,
+        "name": "Vaquero Roundup",
+        "date": "2025-08-25",
+        "location": "Student Union",
+        "description": "Kick off the new semester with music, food, and games. Meet fellow students and learn about campus organizations.",
+    },
+    {
+        "id": 2,
+        "name": "Tech Symposium",
+        "date": "2025-09-10",
+        "location": "Engineering Building Auditorium",
+        "description": "A showcase of student and faculty projects in technology and engineering. Guest speakers from major tech companies.",
+    },
+    {
+        "id": 3,
+        "name": "Stargazing Night",
+        "date": "2025-09-22",
+        "location": "Physics Observatory",
+        "description": "Join the Astronomy Club for a guided tour of the cosmos. Telescopes will be provided.",
+    },
+    {
+        "id": 4,
+        "name": "Career Fest",
+        "date": "2025-10-05",
+        "location": "University Ballroom",
+        "description": "Meet with recruiters from over 50 companies. Bring your resume and dress to impress!",
+    }
+]
+
+# Simulated RSVP data
+rsvps = {
+    1: {"student1@utrgv.edu": {"buddy_up": True, "paired_with": None}},
+    2: {},
+    3: {},
+    4: {}
+}
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# MAIN APPLICATION CLASS
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class VSpotlightApp(tk.Tk):
+    """The main application window for V Spotlight."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # --- App Configuration ---
+        self.title("V Spotlight - UTRGV Event Hub")
+        self.geometry("900x700")
+        self.configure(bg="#f0f0f0")
+        self.current_user = None
+
+        # --- Font & Color Scheme ---
+        self.title_font = font.Font(family="Helvetica", size=18, weight="bold")
+        self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
+        self.body_font = font.Font(family="Helvetica", size=11)
+        self.utrgv_orange = "#f05023"
+        self.utrgv_background = "#9E9B9B"
+        self.utrgv_gray = "#6C6C6C"
+
+        # --- Main Container ---
+        container = tk.Frame(self, bg="#f0f0f0")
+        container.pack(side="top", fill="both", expand=True)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        # --- Frame Management ---
+        self.frames = {}
+        for F in (LoginPage, MainPage, RegisterPage, CalendarPage):
+            page_name = F.__name__
+            frame = F(parent=container, controller=self)
+            self.frames[page_name] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame("LoginPage")
+
+    def show_frame(self, page_name):
+        """Show a frame for the given page name."""
+        frame = self.frames[page_name]
+        # Refresh data when showing the main page or calendar page
+        if page_name in ['MainPage', 'CalendarPage']:
+            frame.refresh_data() 
+        frame.tkraise()
+
+    def reload_users(self):
+        """Reloads the users dictionary from the database."""
+        global users
+        users = load_users()
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# LOGIN PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class LoginPage(tk.Frame):
+    """Login screen for users."""
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.utrgv_background)
+        self.controller = controller
+
+        # --- Central Login Frame ---
+        login_frame = tk.Frame(self, bg="white", padx=40, pady=40, relief="ridge", borderwidth=2)
+        login_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # --- Title ---
+        title_label = tk.Label(login_frame, text="V Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label.pack(pady=(0, 20))
+
+        # --- Username ---
+        username_label = tk.Label(login_frame, text="Username (Email)", font=controller.body_font, bg="white")
+        username_label.pack(anchor="w")
+        self.username_entry = tk.Entry(login_frame, font=controller.body_font, width=30)
+        self.username_entry.pack(pady=(5, 15))
+
+        # --- Password ---
+        password_label = tk.Label(login_frame, text="Password", font=controller.body_font, bg="white")
+        password_label.pack(anchor="w")
+        self.password_entry = tk.Entry(login_frame, show="*", font=controller.body_font, width=30)
+        self.password_entry.pack(pady=5)
+
+        # --- Login Button ---
+        login_button = tk.Button(login_frame, text="Login", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.login)
+        login_button.pack(pady=20, fill="x")
+
+        # --- Register Button ---
+        register_button = tk.Button(login_frame, text="Register New User", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=lambda: controller.show_frame("RegisterPage"))
+        register_button.pack(pady=(0, 10), fill="x")
+
+    def login(self):
+        """Handles the user login logic by checking against the database."""
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+
+        # Check credentials directly from the database
+        with sqlite3.connect('Spotlight.db') as dataConnect:
+            cursor = dataConnect.cursor()
+            cursor.execute("SELECT password FROM studentuser WHERE email=?", (username,))
+            row = cursor.fetchone()
+            if row and row[0] == password:
+                self.controller.current_user = username
+                messagebox.showinfo("Login Success", f"Welcome, {username}!")
+                self.controller.show_frame("MainPage")
+            else:
+                messagebox.showerror("Login Failed", "Invalid username or password.")
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# REGISTRATION PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+class RegisterPage(tk.Frame):
+    """Registration screen for new users."""
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.utrgv_background)
+        self.controller = controller
+
+        # --- Central Registration Frame ---
+        reg_frame = tk.Frame(self, bg="white", padx=40, pady=30, relief="ridge", borderwidth=2)
+        reg_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        title_label = tk.Label(reg_frame, text="Create New Account", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label.pack(pady=(0, 20))
+
+        # --- Input Fields ---
+        fields = ["First Name", "Last Name", "Student ID", "Student Email", "Major", "Password", "Confirm Password"]
+        self.entries = {}
+        for field in fields:
+            label = tk.Label(reg_frame, text=field, font=controller.body_font, bg="white")
+            label.pack(anchor="w", padx=5, pady=(5,0))
+            entry = tk.Entry(reg_frame, font=controller.body_font, width=40)
+            if "Password" in field:
+                entry.config(show="*")
+            entry.pack(anchor="w", padx=5, pady=(0,5))
+            self.entries[field] = entry
+
+        # --- Button Frame ---
+        button_frame = tk.Frame(reg_frame, bg="white")
+        button_frame.pack(pady=20, fill="x")
+
+        # --- Submit Button ---
+        submit_button = tk.Button(button_frame, text="Submit", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.register_user)
+        submit_button.pack(side="left", expand=True, padx=(0, 5))
+
+        # --- Back to Login Button ---
+        back_button = tk.Button(button_frame, text="Back to Login", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=lambda: controller.show_frame("LoginPage"))
+        back_button.pack(side="right", expand=True, padx=(5, 0))
+
+    def register_user(self):
+        """Handles the logic for registering a new user."""
+        # Retrieve data from entries
+        first_name = self.entries["First Name"].get()
+        last_name = self.entries["Last Name"].get()
+        student_id = self.entries["Student ID"].get()
+        email = self.entries["Student Email"].get()
+        major = self.entries["Major"].get()
+        password = self.entries["Password"].get()
+        confirm_password = self.entries["Confirm Password"].get()
+
+        # --- Validation ---
+        if not all([first_name, last_name, student_id, email, major, password, confirm_password]):
+            messagebox.showerror("Error", "All fields must be filled out.")
+            return
+        
+        if password != confirm_password:
+            messagebox.showerror("Error", "Passwords do not match.")
+            return
+            
+        # Check if the email is a valid university email
+        if not email.lower().strip().endswith("@utrgv.edu"):
+            messagebox.showerror("Invalid Email", "Please use a valid @utrgv.edu university email to register.")
+            return
+
+        # Connect to the database to perform checks and insertion
+        with sqlite3.connect('Spotlight.db') as dataConnect:
+            cursor = dataConnect.cursor()
+            
+            # Check if email already exists
+            cursor.execute("SELECT email FROM studentuser WHERE email=?", (email,))
+            if cursor.fetchone():
+                messagebox.showerror("Error", "An account with this email already exists.")
+                return
+
+            # --- Add to Database ---
+            try:
+                cursor.execute(
+                    "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password) VALUES (?, ?, ?, ?, ?, ?)",
+                    (first_name, last_name, student_id, email, major, password)
+                )
+                dataConnect.commit()
+            except sqlite3.IntegrityError:
+                # This could happen if student_id is not unique, if you add that constraint
+                messagebox.showerror("Error", "A student with this ID already exists in the database.")
+                return
+            except Exception as e:
+                messagebox.showerror("Database Error", f"An error occurred: {e}")
+                return
+
+        # --- Reload users dictionary and switch frame ---
+        self.controller.reload_users()
+        messagebox.showinfo("Success", "Account created successfully! Please log in.")
+        
+        # Clear all entry fields
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
+
+        self.controller.show_frame("LoginPage")
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# MAIN APPLICATION PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+class MainPage(tk.Frame):
+    """Main application interface showing events and details."""
+
+    
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg="#f0f0f0")
+        self.controller = controller
+        self.selected_event_id = None
+        self.buddy_up_var = tk.BooleanVar()
+
+        # --- Layout Configuration ---
+        self.columnconfigure(0, weight=1, minsize=300)
+        self.columnconfigure(1, weight=2)
+        self.rowconfigure(1, weight=1)
+
+        # --- Header ---
+        header_frame = tk.Frame(self, bg=controller.utrgv_background, pady=10)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        header_label = tk.Label(header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_background, fg="white")
+        header_label.pack(side="left", padx=20)
+
+        # --- Calendar Button ---
+        calendar_button = tk.Button(header_frame, text="View Calendar", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=lambda: controller.show_frame("CalendarPage"))
+        calendar_button.pack(side="right", padx=20)
+
+        # --- Apply for Organization Button ---
+        apply_org_button = tk.Button(header_frame, text="Apply as Organization", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=self.open_org_application)
+        apply_org_button.pack(side="right", padx=10)
+
+        # --- Dean Approval Button ---
+        if self.controller.current_user == "dean@utrgv.edu":
+            approve_button = tk.Button(header_frame, text="Approve Org Requests", font=controller.header_font, bg="#228B22", fg="white", command=self.open_approval_window)
+            approve_button.pack(side="right", padx=10)
+
+        # --- Left Panel: Events List ---
+        left_panel = tk.Frame(self, bg="white", padx=10, pady=10)
+        left_panel.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=10)
+        left_panel.rowconfigure(1, weight=1)
+        
+        events_label = tk.Label(left_panel, text="Upcoming Events", font=controller.header_font, bg="white", fg=controller.utrgv_gray)
+        events_label.grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        self.events_listbox = tk.Listbox(left_panel, font=controller.body_font, selectbackground=controller.utrgv_orange, relief="flat")
+        self.events_listbox.grid(row=1, column=0, sticky="nsew")
+        self.events_listbox.bind("<<ListboxSelect>>", self.on_event_select)
+
+        # --- Right Panel: Event Details ---
+        right_panel = tk.Frame(self, bg="white", padx=20, pady=20)
+        right_panel.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
+
+        self.event_title = tk.Label(right_panel, text="Select an Event", font=controller.title_font, bg="white", wraplength=500, justify="left")
+        self.event_title.pack(anchor="w", pady=(0, 10))
+
+        self.event_info = tk.Label(right_panel, text="Details will be shown here.", font=controller.body_font, bg="white", wraplength=500, justify="left")
+        self.event_info.pack(anchor="w", pady=(0, 20))
+        
+        self.event_description = tk.Message(right_panel, text="", font=controller.body_font, bg="white", width=500)
+        self.event_description.pack(anchor="w", pady=(0, 20))
+
+        # --- Interaction Controls ---
+        controls_frame = tk.Frame(right_panel, bg="white")
+        controls_frame.pack(fill="x", pady=20)
+
+        self.rsvp_button = tk.Button(controls_frame, text="RSVP", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=self.process_rsvp)
+        self.rsvp_button.pack(side="left", padx=(0, 20))
+
+        self.buddy_check = tk.Checkbutton(controls_frame, text="Find a Buddy", variable=self.buddy_up_var, font=controller.body_font, bg="white")
+        self.buddy_check.pack(side="left")
+
+        # --- Status & Attendees ---
+        self.status_label = tk.Label(right_panel, text="", font=controller.header_font, bg="white", fg=controller.utrgv_background)
+        self.status_label.pack(anchor="w", pady=(20, 10))
+
+        self.attendees_label = tk.Label(right_panel, text="Attendees:", font=controller.header_font, bg="white", fg=controller.utrgv_gray)
+        self.attendees_label.pack(anchor="w")
+        self.attendees_text = tk.Text(right_panel, height=6, width=50, font=controller.body_font, relief="flat", bg="#fafafa")
+        self.attendees_text.pack(anchor="w", fill="x")
+
+        
+    def open_approval_window(self):
+        """Dean reviews and approves org user requests."""
+        win = tk.Toplevel(self)
+        win.title("Approve Organization Requests")
+        win.geometry("400x350")
+        with sqlite3.connect('Spotlight.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, email, organization FROM org_requests WHERE status='pending'")
+            requests = cursor.fetchall()
+        if not requests:
+            tk.Label(win, text="No pending requests.").pack(pady=20)
+            return
+        for req in requests:
+            frame = tk.Frame(win, pady=5)
+            frame.pack(fill="x", padx=10)
+            tk.Label(frame, text=f"{req[1]} ({req[2]}) - {req[3]}", anchor="w").pack(side="left")
+            def approve_closure(req=req):
+                def approve():
+                    # Approve: add as organization user
+                    with sqlite3.connect('Spotlight.db') as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE org_requests SET status='approved' WHERE id=?", (req[0],))
+                        # Create user if not exists
+                        cursor.execute("SELECT * FROM studentuser WHERE email=?", (req[2],))
+                        if not cursor.fetchone():
+                            cursor.execute(
+                                "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password, role, organization) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                (req[1], "", "", req[2], req[3], "changeme", "organization", req[3])
+                            )
+                        conn.commit()
+                    messagebox.showinfo("Approved", f"{req[2]} is now an Organization user.", parent=win)
+                    win.destroy()
+                return approve
+            tk.Button(frame, text="Approve", bg="#228B22", fg="white", command=approve_closure()).pack(side="right")
+
+    def refresh_data(self):
+        """Populates the event listbox with event names."""
+        self.events_listbox.delete(0, tk.END)
+        for event in events:
+            self.events_listbox.insert(tk.END, event["name"])
+        self.clear_details()
+
+    def on_event_select(self, event):
+        """Updates the details panel when an event is selected."""
+        selection_indices = self.events_listbox.curselection()
+        if not selection_indices:
+            return
+        
+        selected_index = selection_indices[0]
+        self.selected_event_id = events[selected_index]["id"]
+        event_data = events[selected_index]
+        
+        # Update details
+        self.event_title.config(text=event_data["name"])
+        self.event_info.config(text=f"Date: {event_data['date']} | Location: {event_data['location']}")
+        self.event_description.config(text=event_data["description"])
+        
+        self.update_status_and_attendees()
+
+    def update_status_and_attendees(self):
+        """Refreshes the RSVP status and list of attendees for the selected event."""
+        if self.selected_event_id is None:
+            return
+
+        current_user = self.controller.current_user
+        event_rsvps = rsvps.get(self.selected_event_id, {})
+        
+        # Update RSVP status and buddy info
+        if current_user in event_rsvps:
+            user_rsvp = event_rsvps[current_user]
+            status_text = "You are RSVP'd!"
+            if user_rsvp["paired_with"]:
+                status_text += f"\nYour buddy is: {user_rsvp['paired_with']}"
+            elif user_rsvp["buddy_up"]:
+                 status_text += "\nLooking for a buddy..."
+            self.status_label.config(text=status_text, fg=self.controller.utrgv_background)
+            self.buddy_up_var.set(user_rsvp["buddy_up"])
+        else:
+            self.status_label.config(text="You are not yet RSVP'd for this event.", fg=self.controller.utrgv_gray)
+            self.buddy_up_var.set(False)
+
+        # Update attendees list
+        self.attendees_text.config(state=tk.NORMAL)
+        self.attendees_text.delete("1.0", tk.END)
+        attendee_list = list(event_rsvps.keys())
+        if attendee_list:
+            self.attendees_text.insert(tk.END, ", ".join(attendee_list))
+        else:
+            self.attendees_text.insert(tk.END, "No one has RSVP'd yet. Be the first!")
+        self.attendees_text.config(state=tk.DISABLED)
+
+    def process_rsvp(self):
+        """Handles the RSVP logic and buddy pairing."""
+        if self.selected_event_id is None:
+            messagebox.showwarning("No Event Selected", "Please select an event from the list first.")
+            return
+
+        current_user = self.controller.current_user
+        wants_buddy = self.buddy_up_var.get()
+        event_rsvps = rsvps.setdefault(self.selected_event_id, {})
+
+        # If user is already RSVP'd, this is just an update
+        if current_user in event_rsvps:
+             event_rsvps[current_user]["buddy_up"] = wants_buddy
+             messagebox.showinfo("Updated", "Your buddy preference has been updated.")
+        else: # New RSVP
+            event_rsvps[current_user] = {"buddy_up": wants_buddy, "paired_with": None}
+            messagebox.showinfo("Success!", "You have successfully RSVP'd.")
+
+        # Buddy Pairing Logic
+        if wants_buddy:
+            self.find_buddy(current_user)
+
+        self.update_status_and_attendees()
+    
+    def find_buddy(self, user):
+        """Simple logic to find and pair a buddy for the selected event."""
+        event_rsvps = rsvps[self.selected_event_id]
+        
+        # Check if user is already paired
+        if event_rsvps[user]["paired_with"]:
+            return
+
+        # Find another user who wants a buddy and is not paired
+        for potential_buddy, details in event_rsvps.items():
+            if potential_buddy != user and details["buddy_up"] and details["paired_with"] is None:
+                # Pair them up!
+                event_rsvps[user]["paired_with"] = potential_buddy
+                event_rsvps[potential_buddy]["paired_with"] = user
+                messagebox.showinfo("Buddy Found!", f"You've been paired with {potential_buddy} for this event!")
+                break
+
+    def clear_details(self):
+        """Clears the event details panel."""
+        self.selected_event_id = None
+        self.event_title.config(text="Select an Event")
+        self.event_info.config(text="Details will be shown here.")
+        self.event_description.config(text="")
+        self.status_label.config(text="")
+        self.attendees_text.config(state=tk.NORMAL)
+        self.attendees_text.delete("1.0", tk.END)
+        self.attendees_text.config(state=tk.DISABLED)
+        self.buddy_up_var.set(False)
+
+    def open_org_application(self):
+        """Open a dialog to apply as an organization user."""
+        app_win = tk.Toplevel(self)
+        app_win.title("Organization Application")
+        app_win.geometry("350x250")
+        tk.Label(app_win, text="Name:").pack(anchor="w", padx=10, pady=(10,0))
+        name_entry = tk.Entry(app_win, width=30)
+        name_entry.pack(padx=10)
+        tk.Label(app_win, text="Email:").pack(anchor="w", padx=10, pady=(10,0))
+        email_entry = tk.Entry(app_win, width=30)
+        email_entry.pack(padx=10)
+        tk.Label(app_win, text="Organization:").pack(anchor="w", padx=10, pady=(10,0))
+        org_entry = tk.Entry(app_win, width=30)
+        org_entry.pack(padx=10)
+        def submit():
+            name = name_entry.get().strip()
+            email = email_entry.get().strip()
+            org = org_entry.get().strip()
+            if not all([name, email, org]):
+                messagebox.showerror("Error", "All fields are required.", parent=app_win)
+                return
+            with sqlite3.connect('Spotlight.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO org_requests (name, email, organization) VALUES (?, ?, ?)", (name, email, org))
+                conn.commit()
+            messagebox.showinfo("Submitted", "Your application has been submitted for approval.", parent=app_win)
+            app_win.destroy()
+        tk.Button(app_win, text="Submit", command=submit, bg="#f05023", fg="white").pack(pady=20)
+
+    def open_approval_window(self):
+        """Dean reviews and approves org user requests."""
+        win = tk.Toplevel(self)
+        win.title("Approve Organization Requests")
+        win.geometry("400x350")
+        with sqlite3.connect('Spotlight.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, email, organization FROM org_requests WHERE status='pending'")
+            requests = cursor.fetchall()
+        if not requests:
+            tk.Label(win, text="No pending requests.").pack(pady=20)
+            return
+        for req in requests:
+            frame = tk.Frame(win, pady=5)
+            frame.pack(fill="x", padx=10)
+            tk.Label(frame, text=f"{req[1]} ({req[2]}) - {req[3]}", anchor="w").pack(side="left")
+            def approve_closure(req=req):
+                def approve():
+                    # Approve: add as organization user
+                    with sqlite3.connect('Spotlight.db') as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE org_requests SET status='approved' WHERE id=?", (req[0],))
+                        # Create user if not exists
+                        cursor.execute("SELECT * FROM studentuser WHERE email=?", (req[2],))
+                        if not cursor.fetchone():
+                            cursor.execute(
+                                "INSERT INTO studentuser (first_name, last_name, student_id, email, major, password, role, organization) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                (req[1], "", "", req[2], req[3], "changeme", "organization", req[3])
+                            )
+                        conn.commit()
+                    messagebox.showinfo("Approved", f"{req[2]} is now an Organization user.", parent=win)
+                    win.destroy()
+                return approve
+            tk.Button(frame, text="Approve", bg="#228B22", fg="white", command=approve_closure()).pack(side="right")
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# CALENDAR PAGE
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+class CalendarPage(tk.Frame):
+    """Displays a monthly event calendar."""
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg="#f0f0f0")
+        self.controller = controller
+        self.year = datetime.now().year
+        self.month = datetime.now().month
+        
+        # To match event data, let's start in August 2025
+        self.year = 2025
+        self.month = 8
+
+        self.event_dates = {datetime.strptime(e["date"], "%Y-%m-%d").date() for e in events}
+
+        # --- Main Layout ---
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=2)
+        self.rowconfigure(1, weight=1)
+
+        # --- Header ---
+        header_frame = tk.Frame(self, bg=controller.utrgv_background, pady=10)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        header_label = tk.Label(header_frame, text="Event Calendar", font=controller.title_font, bg=controller.utrgv_background, fg="white")
+        header_label.pack(side="left", padx=20)
+        back_button = tk.Button(header_frame, text="Back to List", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=lambda: controller.show_frame("MainPage"))
+        back_button.pack(side="right", padx=20)
+
+        # --- Left Panel: Calendar ---
+        calendar_panel = tk.Frame(self, bg="white", padx=10, pady=10)
+        calendar_panel.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=10)
+
+        # Month Navigation
+        nav_frame = tk.Frame(calendar_panel, bg="white")
+        nav_frame.pack(pady=10)
+        prev_button = tk.Button(nav_frame, text="<", command=self.prev_month, font=controller.header_font)
+        prev_button.pack(side="left")
+        self.month_label = tk.Label(nav_frame, text="", font=controller.title_font, bg="white", width=20)
+        self.month_label.pack(side="left", padx=10)
+        next_button = tk.Button(nav_frame, text=">", command=self.next_month, font=controller.header_font)
+        next_button.pack(side="left")
+
+        # Calendar Grid
+        self.calendar_frame = tk.Frame(calendar_panel, bg="white")
+        self.calendar_frame.pack()
+
+        # --- Right Panel: Event Details for Selected Day ---
+        details_panel = tk.Frame(self, bg="white", padx=20, pady=20)
+        details_panel.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
+        self.details_label = tk.Label(details_panel, text="Select a date to see events", font=controller.header_font, bg="white")
+        self.details_label.pack(anchor="w")
+        self.details_text = tk.Text(details_panel, font=controller.body_font, bg="#fafafa", relief="flat", wrap="word")
+        self.details_text.pack(fill="both", expand=True, pady=10)
+        self.details_text.config(state=tk.DISABLED)
+
+    def draw_calendar(self):
+        # Clear previous calendar
+        for widget in self.calendar_frame.winfo_children():
+            widget.destroy()
+
+        # Update month label
+        self.month_label.config(text=f"{calendar.month_name[self.month]} {self.year}")
+
+        # Day of the week headers
+        days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        for i, day in enumerate(days):
+            lbl = tk.Label(self.calendar_frame, text=day, font=self.controller.header_font, bg="white")
+            lbl.grid(row=0, column=i, padx=5, pady=5)
+
+        # Create day buttons
+        month_days = calendar.monthcalendar(self.year, self.month)
+        for row_idx, week in enumerate(month_days, 1):
+            for col_idx, day_num in enumerate(week):
+                if day_num == 0:
+                    continue
+                
+                day_date = datetime(self.year, self.month, day_num).date()
+                btn_bg = "white"
+                btn_fg = "black"
+                btn_font = self.controller.body_font
+                
+                if day_date in self.event_dates:
+                    btn_bg = self.controller.utrgv_orange
+                    btn_fg = "white"
+                    btn_font = font.Font(family="Helvetica", size=11, weight="bold")
+
+                btn = tk.Button(self.calendar_frame, text=str(day_num), width=4, height=2,
+                                bg=btn_bg, fg=btn_fg, font=btn_font,
+                                command=lambda d=day_num: self.show_day_events(d))
+                btn.grid(row=row_idx, column=col_idx, padx=2, pady=2)
+
+    def prev_month(self):
+        self.month -= 1
+        if self.month == 0:
+            self.month = 12
+            self.year -= 1
+        self.draw_calendar()
+        self.clear_details()
+
+    def next_month(self):
+        self.month += 1
+        if self.month == 13:
+            self.month = 1
+            self.year += 1
+        self.draw_calendar()
+        self.clear_details()
+
+    def show_day_events(self, day):
+        selected_date_str = f"{self.year}-{self.month:02d}-{day:02d}"
+        self.details_label.config(text=f"Events for {selected_date_str}")
+        
+        day_events = [e for e in events if e["date"] == selected_date_str]
+        
+        self.details_text.config(state=tk.NORMAL)
+        self.details_text.delete("1.0", tk.END)
+        if day_events:
+            for event in day_events:
+                self.details_text.insert(tk.END, f"Event: {event['name']}\n")
+                self.details_text.insert(tk.END, f"Location: {event['location']}\n")
+                self.details_text.insert(tk.END, f"Description: {event['description']}\n\n")
+        else:
+            self.details_text.insert(tk.END, "No events scheduled for this day.")
+        self.details_text.config(state=tk.DISABLED)
+
+    def clear_details(self):
+        self.details_label.config(text="Select a date to see events")
+        self.details_text.config(state=tk.NORMAL)
+        self.details_text.delete("1.0", tk.END)
+        self.details_text.config(state=tk.DISABLED)
+
+    def refresh_data(self):
+        """Called when the frame is shown."""
+        self.event_dates = {datetime.strptime(e["date"], "%Y-%m-%d").date() for e in events}
+        self.draw_calendar()
+        self.clear_details()
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# APPLICATION STARTUP
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
+if __name__ == "__main__":
+    app = VSpotlightApp()
+    app.mainloop()
