@@ -63,7 +63,7 @@ def setup_database():
             )
         """)
         
-        # --- rsvps Table (NEW) ---
+        # --- rsvps Table ---
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS rsvps(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +75,7 @@ def setup_database():
             )
         """)
 
-        # --- vaquero_matches Table (NEW) ---
+        # --- vaquero_matches Table ---
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vaquero_matches(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,7 +154,7 @@ class VSpotlightApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.title("Vaquero Spotlight - UTRGV Event Hub")
+        self.title("V Spotlight - UTRGV Event Hub")
         self.geometry("900x700")
         self.configure(bg="#f0f0f0")
         
@@ -166,7 +166,7 @@ class VSpotlightApp(tk.Tk):
         self.title_font = font.Font(family="Helvetica", size=18, weight="bold")
         self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
         self.body_font = font.Font(family="Helvetica", size=11)
-        self.utrgv_orange = "#CC4709"
+        self.utrgv_orange = "#f05023"
         self.utrgv_background = "#9E9B9B"
         self.utrgv_gray = "#6C6C6C"
 
@@ -197,7 +197,6 @@ class VSpotlightApp(tk.Tk):
         self.current_user_details = get_user_details(email)
         self.show_frame("MainPage")
 
-    # --- NEW: Sign Out Functionality ---
     def logout_user(self):
         """Logs out the current user and returns to the login page."""
         self.current_user_email = None
@@ -217,7 +216,7 @@ class LoginPage(tk.Frame):
         login_frame = tk.Frame(self, bg="white", padx=40, pady=40, relief="ridge", borderwidth=2)
         login_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        title_label = tk.Label(login_frame, text="Vaquero Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label = tk.Label(login_frame, text="V Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
         title_label.pack(pady=(0, 20))
 
         username_label = tk.Label(login_frame, text="Username (Email)", font=controller.body_font, bg="white")
@@ -240,7 +239,6 @@ class LoginPage(tk.Frame):
         username = self.username_entry.get()
         password = self.password_entry.get()
         
-        # Clear fields after attempting login
         self.username_entry.delete(0, tk.END)
         self.password_entry.delete(0, tk.END)
 
@@ -354,7 +352,6 @@ class MainPage(tk.Frame):
         header_label = tk.Label(self.header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_background, fg="white")
         header_label.pack(side="left", padx=20)
         
-        # --- NEW: Sign Out Button ---
         sign_out_button = tk.Button(self.header_frame, text="Sign Out", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=self.controller.logout_user)
         sign_out_button.pack(side="right", padx=10)
 
@@ -387,8 +384,7 @@ class MainPage(tk.Frame):
         self.event_description = tk.Message(right_panel, text="", font=controller.body_font, bg="white", width=500)
         self.event_description.pack(anchor="w", pady=(0, 20))
 
-        # --- NEW: RSVP Button ---
-        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#CC4709", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
+        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#228B22", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
         self.rsvp_button.pack(anchor="w", pady=(10, 20))
         
         # --- Comments Section ---
@@ -402,7 +398,7 @@ class MainPage(tk.Frame):
         
         self.comments_text = tk.Text(comments_frame, height=6, font=controller.body_font, relief="solid", bg="#fafafa", wrap="word", borderwidth=1)
         self.comments_text.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=5)
-        self.comments_text.config(state=tk.DISABLED)
+        self.comments_text.config(state=tk.NORMAL)
 
         self.comment_entry = tk.Entry(comments_frame, font=controller.body_font, width=50)
         self.comment_entry.grid(row=2, column=0, sticky="ew", pady=5)
@@ -412,26 +408,31 @@ class MainPage(tk.Frame):
 
     def setup_header_buttons(self):
         """Dynamically adds buttons to the header based on user role."""
-        # Clear existing dynamic buttons
+        # --- MODIFIED: Clear existing dynamic buttons ---
         for widget in self.header_frame.winfo_children():
+            # Keep the main title and static buttons
             if widget.cget("text") not in ["UTRGV Campus Events", "View Calendar", "Sign Out"]:
                 widget.destroy()
 
         details = self.controller.current_user_details
         if not details: return
 
-        if details.get('role') == 'dean':
+        role = details.get('role')
+
+        # --- MODIFIED: Conditional button creation based on role ---
+        if role == 'dean':
             approve_button = tk.Button(self.header_frame, text="Approve Org Requests", font=self.controller.header_font, bg="#228B22", fg="white", command=self.open_approval_window)
             approve_button.pack(side="right", padx=10)
         
-        if details.get('role') == 'organization':
+        elif role == 'organization':
             create_event_button = tk.Button(self.header_frame, text="Create Event", font=self.controller.header_font, bg="#007bff", fg="white", command=self.open_create_event_window)
             create_event_button.pack(side="right", padx=10)
+        
+        elif role == 'student':
+            # Only show "Apply" button to users with the default 'student' role
+            apply_org_button = tk.Button(self.header_frame, text="Apply as Organization", font=self.controller.header_font, bg=self.controller.utrgv_gray, fg="white", command=self.open_org_application)
+            apply_org_button.pack(side="right", padx=10)
 
-        apply_org_button = tk.Button(self.header_frame, text="Apply as Organization", font=self.controller.header_font, bg=self.controller.utrgv_gray, fg="white", command=self.open_org_application)
-        apply_org_button.pack(side="right", padx=10)
-        if details.get('role') or details.get('role') == 'dean':
-            apply_org_button.forget()
 
     def refresh_data(self):
         """Populates the event listbox with event names from the database."""
@@ -454,7 +455,7 @@ class MainPage(tk.Frame):
         self.event_info.config(text=f"Date: {event_data['date']} | Location: {event_data['location']}")
         self.event_description.config(text=event_data["description"])
         
-        self.rsvp_button.config(state=tk.NORMAL) # Enable RSVP button
+        self.rsvp_button.config(state=tk.NORMAL)
         self.load_comments()
 
     def load_comments(self):
@@ -480,7 +481,7 @@ class MainPage(tk.Frame):
             self.comments_text.insert(tk.END, "No comments yet. Be the first to comment!")
         
         self.comments_text.tag_config("user_email", font=font.Font(family="Helvetica", size=10, weight="bold"))
-        self.comments_text.config(state=tk.DISABLED)
+        self.comments_text.config(state=tk.NORMAL)
 
     def post_comment(self):
         """Saves a new comment to the database."""
@@ -501,19 +502,18 @@ class MainPage(tk.Frame):
             conn.commit()
         
         self.comment_entry.delete(0, tk.END)
-        self.load_comments() # Refresh comments display
+        self.load_comments()
 
     def clear_details(self):
         self.selected_event_id = None
         self.event_title.config(text="Select an Event")
         self.event_info.config(text="Details will be shown here.")
         self.event_description.config(text="")
-        self.rsvp_button.config(state=tk.DISABLED) # Disable RSVP button
+        self.rsvp_button.config(state=tk.DISABLED)
         self.comments_text.config(state=tk.NORMAL)
         self.comments_text.delete("1.0", tk.END)
         self.comments_text.config(state=tk.DISABLED)
 
-    # --- NEW: RSVP and Find a Vaquero Feature ---
     def open_rsvp_window(self):
         """Opens a window to RSVP and opt-in to Find a Vaquero."""
         if self.selected_event_id is None:
@@ -560,7 +560,6 @@ class MainPage(tk.Frame):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            # Find users who opted-in for this event, are not the current user, and are not already matched for this event
             cursor.execute("""
                 SELECT r.user_email, u.major 
                 FROM rsvps r
@@ -575,35 +574,27 @@ class MainPage(tk.Frame):
             potential_matches = [dict(row) for row in cursor.fetchall()]
 
             if not potential_matches:
-                # No one to match with yet
                 return
 
-            # --- Matching Logic ---
-            # 1. Prioritize same major
             same_major_matches = [p for p in potential_matches if p['major'] == current_user_details['major']]
             
             match_found = None
             if same_major_matches:
                 match_found = random.choice(same_major_matches)
             else:
-                # 2. If no same major, pick a random person
                 match_found = random.choice(potential_matches)
 
             if match_found:
-                # --- We have a match! ---
                 matched_user_email = match_found['user_email']
                 
-                # Record the match
                 cursor.execute(
                     "INSERT INTO vaquero_matches (event_id, user1_email, user2_email) VALUES (?, ?, ?)",
                     (event_id, current_user_email, matched_user_email)
                 )
                 conn.commit()
                 
-                # Get matched user's details for the notification
                 matched_user_details = get_user_details(matched_user_email)
                 
-                # Show notification
                 messagebox.showinfo("Vaquero Found!", 
                                     f"You've been matched with another Vaquero!\n\n"
                                     f"Name: {matched_user_details['first_name']} {matched_user_details['last_name']}\n"
@@ -623,7 +614,7 @@ class MainPage(tk.Frame):
         tk.Label(app_win, text="Your UTRGV Email:").pack(anchor="w", padx=10, pady=(10,0))
         email_entry = tk.Entry(app_win, width=30)
         email_entry.pack(padx=10)
-        # Pre-fill with current user's email
+
         if self.controller.current_user_email:
             email_entry.insert(0, self.controller.current_user_email)
             email_entry.config(state='readonly')
@@ -669,14 +660,12 @@ class MainPage(tk.Frame):
             def approve_action(req_id=req_id, email=email, org=org):
                 with sqlite3.connect('Spotlight.db') as conn:
                     cursor = conn.cursor()
-                    # Update the request status
                     cursor.execute("UPDATE org_requests SET status='approved' WHERE id=?", (req_id,))
-                    # Update the user's role and organization
                     cursor.execute("UPDATE studentuser SET role='organization', organization=? WHERE email=?", (org, email))
                     conn.commit()
                 messagebox.showinfo("Approved", f"{email} is now an Organization user for {org}.", parent=win)
                 win.destroy()
-                self.open_approval_window() # Refresh window
+                self.open_approval_window()
             
             tk.Button(frame, text="Approve", bg="#228B22", fg="white", command=approve_action).pack(side="right")
 
@@ -701,6 +690,7 @@ class MainPage(tk.Frame):
             name = entries["Event Name"].get().strip()
             date = entries["Date (YYYY-MM-DD)"].get().strip()
             location = entries["Location"].get().strip()
+            # --- FIXED: Corrected typo from '..' to '.' ---
             description = entries["Description"].get("1.0", tk.END).strip()
 
             if not all([name, date, location, description]):
@@ -723,7 +713,7 @@ class MainPage(tk.Frame):
             
             messagebox.showinfo("Success", "Event created successfully!", parent=win)
             win.destroy()
-            self.refresh_data() # Refresh main page to show new event
+            self.refresh_data()
 
         tk.Button(win, text="Create Event", command=submit_event, bg=self.controller.utrgv_orange, fg="white").pack(pady=20)
 
