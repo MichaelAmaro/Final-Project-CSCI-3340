@@ -15,5 +15,5 @@ It lets you:
 
 Desktop App
 - a virtual enviroment is recommended, one is provided in the repo
-- Just hit run on main.py, and it should work (hopefully)
+- Hitting run on main.py with the spotlight.db on device, it should work.
 
