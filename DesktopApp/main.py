@@ -166,7 +166,7 @@ class VSpotlightApp(tk.Tk):
         self.title_font = font.Font(family="Helvetica", size=18, weight="bold")
         self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
         self.body_font = font.Font(family="Helvetica", size=11)
-        self.utrgv_orange = "#f05023"
+        self.utrgv_orange = "#CC4709"
         self.utrgv_background = "#9E9B9B"
         self.utrgv_gray = "#6C6C6C"
 
@@ -384,7 +384,7 @@ class MainPage(tk.Frame):
         self.event_description = tk.Message(right_panel, text="", font=controller.body_font, bg="white", width=500)
         self.event_description.pack(anchor="w", pady=(0, 20))
 
-        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#228B22", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
+        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#CC4709", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
         self.rsvp_button.pack(anchor="w", pady=(10, 20))
         
         # --- Comments Section ---
@@ -400,7 +400,7 @@ class MainPage(tk.Frame):
         self.comments_text.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=5)
         self.comments_text.config(state=tk.NORMAL)
 
-        self.comment_entry = tk.Entry(comments_frame, font=controller.body_font, width=50)
+        self.comment_entry = tk.Text(comments_frame, font=controller.body_font, width=50, height=3)
         self.comment_entry.grid(row=2, column=0, sticky="ew", pady=5)
         
         self.post_comment_button = tk.Button(comments_frame, text="Post", font=controller.body_font, bg=controller.utrgv_orange, fg="white", command=self.post_comment)
@@ -485,7 +485,7 @@ class MainPage(tk.Frame):
 
     def post_comment(self):
         """Saves a new comment to the database."""
-        comment_text = self.comment_entry.get().strip()
+        comment_text = self.comment_entry.get("1.0", tk.END).strip()
         if not comment_text:
             messagebox.showwarning("Empty Comment", "Cannot post an empty comment.")
             return
@@ -501,7 +501,7 @@ class MainPage(tk.Frame):
             )
             conn.commit()
         
-        self.comment_entry.delete(0, tk.END)
+        self.comment_entry.delete("1.0", tk.END)
         self.load_comments()
 
     def clear_details(self):
