@@ -39,7 +39,7 @@ def setup_database():
             )
         """)
         
-        # --- events Table (NEW) ---
+        # --- events Table ---
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS events(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +51,7 @@ def setup_database():
             )
         """)
 
-        # --- comments Table (NEW) ---
+        # --- comments Table ---
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS comments(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +59,29 @@ def setup_database():
                 user_email TEXT,
                 comment_text TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (event_id) REFERENCES events(id)
+            )
+        """)
+        
+        # --- rsvps Table (NEW) ---
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rsvps(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER,
+                user_email TEXT,
+                find_vaquero BOOLEAN,
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                UNIQUE(event_id, user_email)
+            )
+        """)
+
+        # --- vaquero_matches Table (NEW) ---
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS vaquero_matches(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER,
+                user1_email TEXT,
+                user2_email TEXT,
                 FOREIGN KEY (event_id) REFERENCES events(id)
             )
         """)
@@ -96,14 +119,14 @@ def get_user_details(email):
     if not email:
         return None
     with sqlite3.connect('Spotlight.db') as conn:
+        conn.row_factory = sqlite3.Row # Allows accessing columns by name
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM studentuser WHERE email=?", (email,))
         user_data = cursor.fetchone()
         if user_data:
-            # Return as a dictionary for easy access
-            columns = [desc[0] for desc in cursor.description]
-            return dict(zip(columns, user_data))
+            return dict(user_data)
     return None
+
 
 def load_events_from_db():
     """Loads all events from the database."""
@@ -174,6 +197,13 @@ class VSpotlightApp(tk.Tk):
         self.current_user_details = get_user_details(email)
         self.show_frame("MainPage")
 
+    # --- NEW: Sign Out Functionality ---
+    def logout_user(self):
+        """Logs out the current user and returns to the login page."""
+        self.current_user_email = None
+        self.current_user_details = None
+        self.show_frame("LoginPage")
+
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # LOGIN PAGE
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -209,6 +239,10 @@ class LoginPage(tk.Frame):
     def login(self):
         username = self.username_entry.get()
         password = self.password_entry.get()
+        
+        # Clear fields after attempting login
+        self.username_entry.delete(0, tk.END)
+        self.password_entry.delete(0, tk.END)
 
         with sqlite3.connect('Spotlight.db') as conn:
             cursor = conn.cursor()
@@ -320,6 +354,10 @@ class MainPage(tk.Frame):
         header_label = tk.Label(self.header_frame, text="UTRGV Campus Events", font=controller.title_font, bg=controller.utrgv_background, fg="white")
         header_label.pack(side="left", padx=20)
         
+        # --- NEW: Sign Out Button ---
+        sign_out_button = tk.Button(self.header_frame, text="Sign Out", font=controller.header_font, bg=controller.utrgv_gray, fg="white", command=self.controller.logout_user)
+        sign_out_button.pack(side="right", padx=10)
+
         calendar_button = tk.Button(self.header_frame, text="View Calendar", font=controller.header_font, bg=controller.utrgv_orange, fg="white", command=lambda: controller.show_frame("CalendarPage"))
         calendar_button.pack(side="right", padx=20)
 
@@ -338,7 +376,7 @@ class MainPage(tk.Frame):
         # --- Right Panel: Event Details ---
         right_panel = tk.Frame(self, bg="white", padx=20, pady=20)
         right_panel.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
-        right_panel.rowconfigure(2, weight=1) # Make comment section expand
+        right_panel.rowconfigure(3, weight=1) # Make comment section expand
 
         self.event_title = tk.Label(right_panel, text="Select an Event", font=controller.title_font, bg="white", wraplength=500, justify="left")
         self.event_title.pack(anchor="w", pady=(0, 10))
@@ -348,8 +386,12 @@ class MainPage(tk.Frame):
         
         self.event_description = tk.Message(right_panel, text="", font=controller.body_font, bg="white", width=500)
         self.event_description.pack(anchor="w", pady=(0, 20))
+
+        # --- NEW: RSVP Button ---
+        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#228B22", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
+        self.rsvp_button.pack(anchor="w", pady=(10, 20))
         
-        # --- Comments Section (NEW) ---
+        # --- Comments Section ---
         comments_frame = tk.Frame(right_panel, bg="white")
         comments_frame.pack(fill="both", expand=True, pady=(10,0))
         comments_frame.columnconfigure(0, weight=1)
@@ -372,7 +414,7 @@ class MainPage(tk.Frame):
         """Dynamically adds buttons to the header based on user role."""
         # Clear existing dynamic buttons
         for widget in self.header_frame.winfo_children():
-            if widget.cget("text") not in ["UTRGV Campus Events", "View Calendar"]:
+            if widget.cget("text") not in ["UTRGV Campus Events", "View Calendar", "Sign Out"]:
                 widget.destroy()
 
         details = self.controller.current_user_details
@@ -410,6 +452,7 @@ class MainPage(tk.Frame):
         self.event_info.config(text=f"Date: {event_data['date']} | Location: {event_data['location']}")
         self.event_description.config(text=event_data["description"])
         
+        self.rsvp_button.config(state=tk.NORMAL) # Enable RSVP button
         self.load_comments()
 
     def load_comments(self):
@@ -463,9 +506,108 @@ class MainPage(tk.Frame):
         self.event_title.config(text="Select an Event")
         self.event_info.config(text="Details will be shown here.")
         self.event_description.config(text="")
+        self.rsvp_button.config(state=tk.DISABLED) # Disable RSVP button
         self.comments_text.config(state=tk.NORMAL)
         self.comments_text.delete("1.0", tk.END)
         self.comments_text.config(state=tk.DISABLED)
+
+    # --- NEW: RSVP and Find a Vaquero Feature ---
+    def open_rsvp_window(self):
+        """Opens a window to RSVP and opt-in to Find a Vaquero."""
+        if self.selected_event_id is None:
+            return
+
+        rsvp_win = tk.Toplevel(self)
+        rsvp_win.title("RSVP")
+        rsvp_win.geometry("350x200")
+        
+        tk.Label(rsvp_win, text="Confirm your RSVP for this event.", font=self.controller.body_font).pack(pady=10)
+        
+        find_vaquero_var = tk.BooleanVar()
+        tk.Checkbutton(rsvp_win, text="Find a Vaquero: Match with another student!", variable=find_vaquero_var, font=self.controller.body_font).pack(pady=10)
+
+        def submit_rsvp():
+            find_vaquero = find_vaquero_var.get()
+            user_email = self.controller.current_user_email
+            
+            with sqlite3.connect('Spotlight.db') as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(
+                        "INSERT INTO rsvps (event_id, user_email, find_vaquero) VALUES (?, ?, ?)",
+                        (self.selected_event_id, user_email, find_vaquero)
+                    )
+                    conn.commit()
+                    messagebox.showinfo("RSVP Confirmed", "Your RSVP has been recorded.", parent=rsvp_win)
+                    
+                    if find_vaquero:
+                        self.find_vaquero_match(self.selected_event_id, user_email)
+
+                except sqlite3.IntegrityError:
+                    messagebox.showwarning("Already RSVP'd", "You have already RSVP'd for this event.", parent=rsvp_win)
+            
+            rsvp_win.destroy()
+
+        tk.Button(rsvp_win, text="Confirm RSVP", command=submit_rsvp, bg=self.controller.utrgv_orange, fg="white", font=self.controller.header_font).pack(pady=20)
+
+    def find_vaquero_match(self, event_id, current_user_email):
+        """Logic to find a match for the 'Find a Vaquero' feature."""
+        current_user_details = self.controller.current_user_details
+        
+        with sqlite3.connect('Spotlight.db') as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # Find users who opted-in for this event, are not the current user, and are not already matched for this event
+            cursor.execute("""
+                SELECT r.user_email, u.major 
+                FROM rsvps r
+                JOIN studentuser u ON r.user_email = u.email
+                WHERE r.event_id = ? 
+                  AND r.find_vaquero = 1 
+                  AND r.user_email != ?
+                  AND r.user_email NOT IN (SELECT user1_email FROM vaquero_matches WHERE event_id = ?)
+                  AND r.user_email NOT IN (SELECT user2_email FROM vaquero_matches WHERE event_id = ?)
+            """, (event_id, current_user_email, event_id, event_id))
+            
+            potential_matches = [dict(row) for row in cursor.fetchall()]
+
+            if not potential_matches:
+                # No one to match with yet
+                return
+
+            # --- Matching Logic ---
+            # 1. Prioritize same major
+            same_major_matches = [p for p in potential_matches if p['major'] == current_user_details['major']]
+            
+            match_found = None
+            if same_major_matches:
+                match_found = random.choice(same_major_matches)
+            else:
+                # 2. If no same major, pick a random person
+                match_found = random.choice(potential_matches)
+
+            if match_found:
+                # --- We have a match! ---
+                matched_user_email = match_found['user_email']
+                
+                # Record the match
+                cursor.execute(
+                    "INSERT INTO vaquero_matches (event_id, user1_email, user2_email) VALUES (?, ?, ?)",
+                    (event_id, current_user_email, matched_user_email)
+                )
+                conn.commit()
+                
+                # Get matched user's details for the notification
+                matched_user_details = get_user_details(matched_user_email)
+                
+                # Show notification
+                messagebox.showinfo("Vaquero Found!", 
+                                    f"You've been matched with another Vaquero!\n\n"
+                                    f"Name: {matched_user_details['first_name']} {matched_user_details['last_name']}\n"
+                                    f"Email: {matched_user_details['email']}\n\n"
+                                    f"Feel free to connect before the event!")
+
 
     def open_org_application(self):
         app_win = tk.Toplevel(self)
