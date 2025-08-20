@@ -154,7 +154,7 @@ class VSpotlightApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.title("V Spotlight - UTRGV Event Hub")
+        self.title("Vaquero Spotlight - UTRGV Event Hub")
         self.geometry("900x700")
         self.configure(bg="#f0f0f0")
         
@@ -166,7 +166,7 @@ class VSpotlightApp(tk.Tk):
         self.title_font = font.Font(family="Helvetica", size=18, weight="bold")
         self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
         self.body_font = font.Font(family="Helvetica", size=11)
-        self.utrgv_orange = "#f05023"
+        self.utrgv_orange = "#CC4709"
         self.utrgv_background = "#9E9B9B"
         self.utrgv_gray = "#6C6C6C"
 
@@ -217,7 +217,7 @@ class LoginPage(tk.Frame):
         login_frame = tk.Frame(self, bg="white", padx=40, pady=40, relief="ridge", borderwidth=2)
         login_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        title_label = tk.Label(login_frame, text="V Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label = tk.Label(login_frame, text="Vaquero Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
         title_label.pack(pady=(0, 20))
 
         username_label = tk.Label(login_frame, text="Username (Email)", font=controller.body_font, bg="white")
@@ -388,7 +388,7 @@ class MainPage(tk.Frame):
         self.event_description.pack(anchor="w", pady=(0, 20))
 
         # --- NEW: RSVP Button ---
-        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#228B22", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
+        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#CC4709", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
         self.rsvp_button.pack(anchor="w", pady=(10, 20))
         
         # --- Comments Section ---
@@ -430,6 +430,8 @@ class MainPage(tk.Frame):
 
         apply_org_button = tk.Button(self.header_frame, text="Apply as Organization", font=self.controller.header_font, bg=self.controller.utrgv_gray, fg="white", command=self.open_org_application)
         apply_org_button.pack(side="right", padx=10)
+        if details.get('role') or details.get('role') == 'dean':
+            apply_org_button.forget()
 
     def refresh_data(self):
         """Populates the event listbox with event names from the database."""
