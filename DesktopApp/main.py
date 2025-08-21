@@ -132,7 +132,8 @@ def load_events_from_db():
     """Loads all events from the database."""
     with sqlite3.connect('Spotlight.db') as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, name, date, location, description FROM events ORDER BY date")
+        # --- MODIFIED: Added organization_email to the query ---
+        cursor.execute("SELECT id, name, date, location, description, organization_email FROM events ORDER BY date")
         events_data = []
         for row in cursor.fetchall():
             events_data.append({
@@ -140,7 +141,8 @@ def load_events_from_db():
                 "name": row[1],
                 "date": row[2],
                 "location": row[3],
-                "description": row[4]
+                "description": row[4],
+                "organization_email": row[5]
             })
     return events_data
 
@@ -166,7 +168,7 @@ class VSpotlightApp(tk.Tk):
         self.title_font = font.Font(family="Helvetica", size=18, weight="bold")
         self.header_font = font.Font(family="Helvetica", size=12, weight="bold")
         self.body_font = font.Font(family="Helvetica", size=11)
-        self.utrgv_orange = "#CC4709"
+        self.utrgv_orange = "#f05023"
         self.utrgv_background = "#9E9B9B"
         self.utrgv_gray = "#6C6C6C"
 
@@ -373,7 +375,7 @@ class MainPage(tk.Frame):
         # --- Right Panel: Event Details ---
         right_panel = tk.Frame(self, bg="white", padx=20, pady=20)
         right_panel.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
-        right_panel.rowconfigure(3, weight=1) # Make comment section expand
+        right_panel.rowconfigure(4, weight=1) # Make comment section expand
 
         self.event_title = tk.Label(right_panel, text="Select an Event", font=controller.title_font, bg="white", wraplength=500, justify="left")
         self.event_title.pack(anchor="w", pady=(0, 10))
@@ -383,10 +385,18 @@ class MainPage(tk.Frame):
         
         self.event_description = tk.Message(right_panel, text="", font=controller.body_font, bg="white", width=500)
         self.event_description.pack(anchor="w", pady=(0, 20))
-
-        self.rsvp_button = tk.Button(right_panel, text="RSVP for this Event", font=controller.header_font, bg="#CC4709", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
-        self.rsvp_button.pack(anchor="w", pady=(10, 20))
         
+        # --- Button container ---
+        button_container = tk.Frame(right_panel, bg="white")
+        button_container.pack(anchor="w", pady=(10, 20))
+
+        self.rsvp_button = tk.Button(button_container, text="RSVP for this Event", font=controller.header_font, bg="#228B22", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
+        self.rsvp_button.pack(side="left")
+        
+        # --- NEW: View RSVPs Button ---
+        self.view_rsvps_button = tk.Button(button_container, text="View RSVPs", font=controller.header_font, bg="#007bff", fg="white", command=self.open_rsvp_list_window)
+        # This button is hidden by default and shown in on_event_select
+
         # --- Comments Section ---
         comments_frame = tk.Frame(right_panel, bg="white")
         comments_frame.pack(fill="both", expand=True, pady=(10,0))
@@ -396,11 +406,19 @@ class MainPage(tk.Frame):
         comments_label = tk.Label(comments_frame, text="Comments", font=controller.header_font, bg="white", fg=controller.utrgv_gray)
         comments_label.grid(row=0, column=0, sticky="w")
         
-        self.comments_text = tk.Text(comments_frame, height=6, font=controller.body_font, relief="solid", bg="#fafafa", wrap="word", borderwidth=1)
-        self.comments_text.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=5)
-        self.comments_text.config(state=tk.NORMAL)
+        # --- MODIFIED: Scrollable frame for comments ---
+        self.comments_canvas = tk.Canvas(comments_frame, bg="#fafafa", highlightthickness=0)
+        self.comments_scrollbar = tk.Scrollbar(comments_frame, orient="vertical", command=self.comments_canvas.yview)
+        self.scrollable_comments_frame = tk.Frame(self.comments_canvas, bg="#fafafa")
 
-        self.comment_entry = tk.Text(comments_frame, font=controller.body_font, width=50, height=3)
+        self.scrollable_comments_frame.bind("<Configure>", lambda e: self.comments_canvas.configure(scrollregion=self.comments_canvas.bbox("all")))
+        self.comments_canvas.create_window((0, 0), window=self.scrollable_comments_frame, anchor="nw")
+        self.comments_canvas.configure(yscrollcommand=self.comments_scrollbar.set)
+
+        self.comments_canvas.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=5)
+        self.comments_scrollbar.grid(row=1, column=2, sticky="ns")
+
+        self.comment_entry = tk.Entry(comments_frame, font=controller.body_font, width=50)
         self.comment_entry.grid(row=2, column=0, sticky="ew", pady=5)
         
         self.post_comment_button = tk.Button(comments_frame, text="Post", font=controller.body_font, bg=controller.utrgv_orange, fg="white", command=self.post_comment)
@@ -408,9 +426,7 @@ class MainPage(tk.Frame):
 
     def setup_header_buttons(self):
         """Dynamically adds buttons to the header based on user role."""
-        # --- MODIFIED: Clear existing dynamic buttons ---
         for widget in self.header_frame.winfo_children():
-            # Keep the main title and static buttons
             if widget.cget("text") not in ["UTRGV Campus Events", "View Calendar", "Sign Out"]:
                 widget.destroy()
 
@@ -419,7 +435,6 @@ class MainPage(tk.Frame):
 
         role = details.get('role')
 
-        # --- MODIFIED: Conditional button creation based on role ---
         if role == 'dean':
             approve_button = tk.Button(self.header_frame, text="Approve Org Requests", font=self.controller.header_font, bg="#228B22", fg="white", command=self.open_approval_window)
             approve_button.pack(side="right", padx=10)
@@ -429,7 +444,6 @@ class MainPage(tk.Frame):
             create_event_button.pack(side="right", padx=10)
         
         elif role == 'student':
-            # Only show "Apply" button to users with the default 'student' role
             apply_org_button = tk.Button(self.header_frame, text="Apply as Organization", font=self.controller.header_font, bg=self.controller.utrgv_gray, fg="white", command=self.open_org_application)
             apply_org_button.pack(side="right", padx=10)
 
@@ -444,6 +458,9 @@ class MainPage(tk.Frame):
         self.clear_details()
 
     def on_event_select(self, event):
+        # --- MODIFIED: Hide RSVP view button initially ---
+        self.view_rsvps_button.pack_forget()
+
         selection_indices = self.events_listbox.curselection()
         if not selection_indices: return
         
@@ -456,36 +473,61 @@ class MainPage(tk.Frame):
         self.event_description.config(text=event_data["description"])
         
         self.rsvp_button.config(state=tk.NORMAL)
+
+        # --- NEW: Show 'View RSVPs' button for event owner ---
+        user_details = self.controller.current_user_details
+        if user_details and user_details.get('role') == 'organization' and user_details.get('email') == event_data.get('organization_email'):
+            self.view_rsvps_button.pack(side="left", padx=(10, 0))
+
         self.load_comments()
 
     def load_comments(self):
         """Loads and displays comments for the selected event."""
+        # --- MODIFIED: Rebuilt for dynamic widgets ---
+        for widget in self.scrollable_comments_frame.winfo_children():
+            widget.destroy()
+
         if self.selected_event_id is None: return
-        
-        self.comments_text.config(state=tk.NORMAL)
-        self.comments_text.delete("1.0", tk.END)
 
         with sqlite3.connect('Spotlight.db') as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT user_email, comment_text, strftime('%Y-%m-%d %H:%M', timestamp) 
+                SELECT id, user_email, comment_text, strftime('%Y-%m-%d %H:%M', timestamp) 
                 FROM comments WHERE event_id=? ORDER BY timestamp DESC
             """, (self.selected_event_id,))
             comments = cursor.fetchall()
         
         if comments:
-            for email, comment, ts in comments:
-                self.comments_text.insert(tk.END, f"{email.split('@')[0]} ({ts}):\n", ("user_email",))
-                self.comments_text.insert(tk.END, f"{comment}\n\n")
+            for comment_id, email, comment, ts in comments:
+                comment_frame = tk.Frame(self.scrollable_comments_frame, bg="#fafafa")
+                comment_frame.pack(fill="x", pady=5, padx=5)
+                
+                header = f"{email.split('@')[0]} ({ts}):"
+                tk.Label(comment_frame, text=header, font=font.Font(family="Helvetica", size=10, weight="bold"), bg="#fafafa", justify="left").pack(anchor="w")
+                tk.Label(comment_frame, text=comment, wraplength=450, bg="#fafafa", justify="left").pack(anchor="w")
+
+                # --- NEW: Add delete button if user is author or dean ---
+                current_user = self.controller.current_user_details
+                if current_user and (current_user['email'] == email or current_user['role'] == 'dean'):
+                    delete_btn = tk.Button(comment_frame, text="Delete", font=("Helvetica", 8), bg="#dc3545", fg="white", 
+                                           command=lambda c_id=comment_id: self.delete_comment(c_id))
+                    delete_btn.pack(anchor="e")
         else:
-            self.comments_text.insert(tk.END, "No comments yet. Be the first to comment!")
-        
-        self.comments_text.tag_config("user_email", font=font.Font(family="Helvetica", size=10, weight="bold"))
-        self.comments_text.config(state=tk.NORMAL)
+            tk.Label(self.scrollable_comments_frame, text="No comments yet. Be the first to comment!", bg="#fafafa").pack()
+
+    def delete_comment(self, comment_id):
+        """Deletes a specific comment from the database."""
+        # --- NEW: Function to delete comments ---
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this comment?"):
+            with sqlite3.connect('Spotlight.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM comments WHERE id=?", (comment_id,))
+                conn.commit()
+            self.load_comments() # Refresh the comment list
 
     def post_comment(self):
         """Saves a new comment to the database."""
-        comment_text = self.comment_entry.get("1.0", tk.END).strip()
+        comment_text = self.comment_entry.get().strip()
         if not comment_text:
             messagebox.showwarning("Empty Comment", "Cannot post an empty comment.")
             return
@@ -501,7 +543,7 @@ class MainPage(tk.Frame):
             )
             conn.commit()
         
-        self.comment_entry.delete("1.0", tk.END)
+        self.comment_entry.delete(0, tk.END)
         self.load_comments()
 
     def clear_details(self):
@@ -510,9 +552,9 @@ class MainPage(tk.Frame):
         self.event_info.config(text="Details will be shown here.")
         self.event_description.config(text="")
         self.rsvp_button.config(state=tk.DISABLED)
-        self.comments_text.config(state=tk.NORMAL)
-        self.comments_text.delete("1.0", tk.END)
-        self.comments_text.config(state=tk.DISABLED)
+        self.view_rsvps_button.pack_forget()
+        for widget in self.scrollable_comments_frame.winfo_children():
+            widget.destroy()
 
     def open_rsvp_window(self):
         """Opens a window to RSVP and opt-in to Find a Vaquero."""
@@ -641,7 +683,7 @@ class MainPage(tk.Frame):
     def open_approval_window(self):
         win = tk.Toplevel(self)
         win.title("Approve Organization Requests")
-        win.geometry("500x400")
+        win.geometry("600x400")
         
         with sqlite3.connect('Spotlight.db') as conn:
             cursor = conn.cursor()
@@ -657,6 +699,16 @@ class MainPage(tk.Frame):
             frame.pack(fill="x", padx=10)
             tk.Label(frame, text=f"{name} ({email}) - Org: {org}", anchor="w").pack(side="left", expand=True, fill='x')
             
+            # --- MODIFIED: Added Deny button and logic ---
+            def deny_action(req_id=req_id, email=email):
+                with sqlite3.connect('Spotlight.db') as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE org_requests SET status='denied' WHERE id=?", (req_id,))
+                    conn.commit()
+                messagebox.showinfo("Denied", f"Request for {email} has been denied.", parent=win)
+                win.destroy()
+                self.open_approval_window()
+
             def approve_action(req_id=req_id, email=email, org=org):
                 with sqlite3.connect('Spotlight.db') as conn:
                     cursor = conn.cursor()
@@ -667,6 +719,7 @@ class MainPage(tk.Frame):
                 win.destroy()
                 self.open_approval_window()
             
+            tk.Button(frame, text="Deny", bg="#dc3545", fg="white", command=deny_action).pack(side="right", padx=5)
             tk.Button(frame, text="Approve", bg="#228B22", fg="white", command=approve_action).pack(side="right")
 
     def open_create_event_window(self):
@@ -690,7 +743,6 @@ class MainPage(tk.Frame):
             name = entries["Event Name"].get().strip()
             date = entries["Date (YYYY-MM-DD)"].get().strip()
             location = entries["Location"].get().strip()
-            # --- FIXED: Corrected typo from '..' to '.' ---
             description = entries["Description"].get("1.0", tk.END).strip()
 
             if not all([name, date, location, description]):
@@ -716,6 +768,38 @@ class MainPage(tk.Frame):
             self.refresh_data()
 
         tk.Button(win, text="Create Event", command=submit_event, bg=self.controller.utrgv_orange, fg="white").pack(pady=20)
+
+    def open_rsvp_list_window(self):
+        """Shows a list of users who have RSVP'd for the selected event."""
+        # --- NEW: Function to show RSVP list ---
+        if self.selected_event_id is None: return
+
+        win = tk.Toplevel(self)
+        win.title("RSVP List")
+        win.geometry("400x500")
+
+        with sqlite3.connect('Spotlight.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT u.first_name, u.last_name, u.email 
+                FROM rsvps r
+                JOIN studentuser u ON r.user_email = u.email
+                WHERE r.event_id = ?
+            """, (self.selected_event_id,))
+            rsvps = cursor.fetchall()
+        
+        tk.Label(win, text=f"Attendees for: {self.event_title.cget('text')}", font=self.controller.header_font).pack(pady=10)
+
+        if not rsvps:
+            tk.Label(win, text="No one has RSVP'd yet.").pack(pady=20)
+            return
+        
+        listbox = tk.Listbox(win, font=self.controller.body_font)
+        listbox.pack(fill="both", expand=True, padx=10, pady=10)
+
+        for first, last, email in rsvps:
+            listbox.insert(tk.END, f"{first} {last} ({email})")
+
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # CALENDAR PAGE
