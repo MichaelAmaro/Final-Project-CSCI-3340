@@ -5,13 +5,30 @@
     <div class="media-body">
       <div class="article-metadata">
         <a class="mr-2" href="#">{{ object.author }}</a>
-        <small class="text-muted">{{ object.date_posted|date:"F d, Y" }}</small>
       </div>
       <h2 class="article-title">{{ object.title }}</h2>
-      <p class="article-content">{{ object.content }}</p>
+      <p class="article-content">{{ object.description }}</p>
+      <div class="event-details">
+        <h5>✨ Event Details ✨</h5>
+        <div class="event-detail-item">
+          <span class="event-detail-icon">📅</span>
+          <span class="event-detail-label">Date:</span>
+          <span class="event-detail-value">{{ object.event_date|date:"F d, Y" }}</span>
+        </div>
+        <div class="event-detail-item">
+          <span class="event-detail-icon">🕐</span>
+          <span class="event-detail-label">Time:</span>
+          <span class="event-detail-value">{{ object.event_time|time:"g:i A" }}</span>
+        </div>
+        <div class="event-detail-item">
+          <span class="event-detail-icon">📍</span>
+          <span class="event-detail-label">Location:</span>
+          <span class="event-detail-value">{{ object.location }}</span>
+        </div>
+      </div>
       {% if object.author == user %}
         <div class="text-right mt-3">
-          <a class="btn btn-danger btn-sm" href="{% url 'post-delete' object.id %}">Delete</a>
+          <a class="btn btn-danger btn-sm" href="{% url 'event-delete' object.id %}">Delete</a>
         </div>
       {% endif %}
     </div>

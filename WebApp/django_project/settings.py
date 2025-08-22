@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-&wq(0(^xd=g$o=9cevhn&mq_wkxbev1k_6)c9chs4^t@ix5s7c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '*']
 
 
 # Application definition
@@ -127,6 +127,7 @@ MEDIA_URL = '/media/' # this is the url to the media files
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 LOGIN_REDIRECT_URL = 'blog-home'
 LOGIN_URL = 'login'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
