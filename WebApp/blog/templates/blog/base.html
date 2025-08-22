@@ -34,7 +34,7 @@
             <!-- Navbar Right Side -->
             <div class="navbar-nav">
               {% if user.is_authenticated %}
-                <a class="nav-item nav-link" href="{% url 'post-create' %}">New Post</a>
+                <a class="nav-item nav-link" href="{% url 'event-create' %}">New Event</a>
                 <a class="nav-item nav-link" href="{% url 'profile' %}">Profile</a>
                 <a class="nav-item nav-link" href="{% url 'logout' %}">Logout</a>
               {% else %}
@@ -61,13 +61,12 @@
         <div class="col-md-4">
           <div class="content-section">
             <h3>Sidebar</h3>
-              <ul class="list-group">
-                <li class="list-group-item list-group-item-light">Latest Posts</li>
-                <li class="list-group-item list-group-item-light">Announcements</li>
-                <li class="list-group-item list-group-item-light">Calender</li>
-                <li class="list-group-item list-group-item-light">Your Calendar</li>
-                <li class="list-group-item list-group-item-light">Idk what else....</li>
-              </ul>
+            <ul class="list-group">
+              <li class="list-group-item list-group-item-light">Latest Events</li>
+              <li class="list-group-item list-group-item-light">Announcements</li>
+              <li class="list-group-item list-group-item-light">Calendars</li>
+              <li class="list-group-item list-group-item-light">Event Categories</li>
+            </ul>
             </p>
           </div>
         </div>

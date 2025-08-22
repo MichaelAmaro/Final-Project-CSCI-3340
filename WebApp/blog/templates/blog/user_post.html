@@ -1,16 +1,32 @@
 {% extends "blog/base.html" %}
 {% block content %}
-    <h1 class="mb-3">Posts by {{ view.kwargs.username }} ({{ page_obj.paginator.count }})</h1>
-    {% for post in posts %}
+    <h1 class="mb-3">Events by {{ view.kwargs.username }} ({{ page_obj.paginator.count }})</h1>
+    {% for event in events %}
         <article class="media content-section">
-          <img class="rounded-circle article-img" src="{{ post.author.profile.image.url }}">
+          <img class="rounded-circle article-img" src="{{ event.author.profile.image.url }}">
           <div class="media-body">
             <div class="article-metadata">
-              <a class="mr-2" href="{% url 'user-posts' post.author.username %}">{{ post.author }}</a>
-              <small class="text-muted">{{ post.date_posted|date:"F d, Y" }}</small>
+              <a class="mr-2" href="{% url 'user-events' event.author.username %}">{{ event.author }}</a>
             </div>
-            <h2><a class="article-title" href="{% url 'post-detail' post.id %}">{{ post.title }}</a></h2>
-            <p class="article-content">{{ post.content }}</p>
+            <h2><a class="article-title" href="{% url 'event-detail' event.id %}">{{ event.title }}</a></h2>
+            <p class="article-content">{{ event.description }}</p>
+            <div class="event-details-inline">
+              <div class="event-detail-button date-button">
+                <span class="icon">📅</span>
+                <span class="label">Date:</span>
+                <span class="value">{{ event.event_date|date:"M d, Y" }}</span>
+              </div>
+              <div class="event-detail-button time-button">
+                <span class="icon">🕐</span>
+                <span class="label">Time:</span>
+                <span class="value">{{ event.event_time|time:"g:i A" }}</span>
+              </div>
+              <div class="event-detail-button location-button">
+                <span class="icon">📍</span>
+                <span class="label">Location:</span>
+                <span class="value">{{ event.location }}</span>
+              </div>
+            </div>
           </div>
         </article>
     {% endfor %}

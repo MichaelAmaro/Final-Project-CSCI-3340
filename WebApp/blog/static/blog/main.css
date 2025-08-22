@@ -95,3 +95,156 @@ body {
   .account-heading {
     font-size: 2.5rem;
   }
+
+  /* Cute Event Details Styling */
+  .event-details {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    border-radius: 15px;
+    padding: 15px;
+    margin-top: 15px;
+    border: 2px solid #e1f5fe;
+    box-shadow: 0 4px 15px rgba(0, 150, 255, 0.1);
+  }
+
+  .event-details h5 {
+    color: #0277bd;
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .event-detail-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 10px;
+    border-left: 4px solid #4fc3f7;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+  }
+
+  .event-detail-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .event-detail-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .event-detail-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    color: #4fc3f7;
+    font-size: 1.2rem;
+  }
+
+  .event-detail-label {
+    font-weight: 600;
+    color: #0277bd;
+    margin-right: 8px;
+    min-width: 60px;
+  }
+
+  .event-detail-value {
+    color: #424242;
+    font-weight: 500;
+  }
+
+  /* Cute Button-Style Event Details */
+  .event-details-inline {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+  }
+
+  .event-detail-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    min-height: 36px;
+    height: 36px;
+    box-sizing: border-box;
+  }
+
+  .event-detail-button .icon {
+    font-size: 14px;
+  }
+
+  .event-detail-button .label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .event-detail-button .value {
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  .date-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .date-button:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  }
+
+  .time-button {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  .time-button:hover {
+    background: linear-gradient(135deg, #e085e8 0%, #e54d62 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(240, 147, 251, 0.3);
+  }
+
+  .location-button {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  }
+
+  .location-button:hover {
+    background: linear-gradient(135deg, #3e9bed 0%, #00d8e2 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 172, 254, 0.3);
+  }
+
+  /* Cute Location Tag */
+  .location-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 10px;
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .location-tag:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+  }
+
+  .location-tag .icon {
+    font-size: 16px;
+  }
