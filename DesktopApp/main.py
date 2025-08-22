@@ -156,7 +156,7 @@ class VSpotlightApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.title("V Spotlight - UTRGV Event Hub")
+        self.title("Vaquero Spotlight - UTRGV Event Hub")
         self.geometry("900x700")
         self.configure(bg="#f0f0f0")
         
@@ -218,7 +218,7 @@ class LoginPage(tk.Frame):
         login_frame = tk.Frame(self, bg="white", padx=40, pady=40, relief="ridge", borderwidth=2)
         login_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        title_label = tk.Label(login_frame, text="V Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
+        title_label = tk.Label(login_frame, text="Vaquero Spotlight", font=controller.title_font, bg="white", fg=controller.utrgv_orange)
         title_label.pack(pady=(0, 20))
 
         username_label = tk.Label(login_frame, text="Username (Email)", font=controller.body_font, bg="white")
