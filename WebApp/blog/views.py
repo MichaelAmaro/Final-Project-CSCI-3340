@@ -1,5 +1,6 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.models import User
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import Post #from the models.py file we imported the Post class
 
@@ -34,6 +35,18 @@ class PostListView(ListView):
     template_name = 'blog/home.html'
     context_object_name = 'posts'
     ordering = ['-date_posted'] # this is the ordering of the posts by date newest to oldest "-"" means newest to oldest
+    paginate_by = 5 # this is the number of posts per page im still deciding to add images or not so depending ill see how big the page will be
+
+class UserPostListView(ListView):
+    model = Post
+    template_name = 'blog/user_post.html'
+    context_object_name = 'posts'
+    ordering = ['-date_posted'] # this is the ordering of the posts by date newest to oldest "-"" means newest to oldest
+    paginate_by = 5 # this is the number of posts per page im still deciding to add images or not so depending ill see how big the page will be
+
+    def get_queryset(self): #if user doesnt exsit tell the user that the user doesnt exsit
+        user = get_object_or_404(User, username=self.kwargs.get('username'))
+        return Post.objects.filter(author=user).order_by('-date_posted')
 
 
 class PostDetailView(DetailView):
