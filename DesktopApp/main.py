@@ -390,11 +390,11 @@ class MainPage(tk.Frame):
         button_container = tk.Frame(right_panel, bg="white")
         button_container.pack(anchor="w", pady=(10, 20))
 
-        self.rsvp_button = tk.Button(button_container, text="RSVP for this Event", font=controller.header_font, bg="#228B22", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
+        self.rsvp_button = tk.Button(button_container, text="RSVP for this Event", font=controller.header_font, bg="#CC4709", fg="white", state=tk.DISABLED, command=self.open_rsvp_window)
         self.rsvp_button.pack(side="left")
         
         # --- NEW: View RSVPs Button ---
-        self.view_rsvps_button = tk.Button(button_container, text="View RSVPs", font=controller.header_font, bg="#007bff", fg="white", command=self.open_rsvp_list_window)
+        self.view_rsvps_button = tk.Button(button_container, text="View RSVPs", font=controller.header_font, bg="#CC4709", fg="white", command=self.open_rsvp_list_window)
         # This button is hidden by default and shown in on_event_select
 
         # --- Comments Section ---
@@ -436,15 +436,15 @@ class MainPage(tk.Frame):
         role = details.get('role')
 
         if role == 'dean':
-            approve_button = tk.Button(self.header_frame, text="Approve Org Requests", font=self.controller.header_font, bg="#228B22", fg="white", command=self.open_approval_window)
+            approve_button = tk.Button(self.header_frame, text="Approve Org Requests", font=self.controller.header_font, bg="#CC4709", fg="white", command=self.open_approval_window)
             approve_button.pack(side="right", padx=10)
         
         elif role == 'organization':
-            create_event_button = tk.Button(self.header_frame, text="Create Event", font=self.controller.header_font, bg="#007bff", fg="white", command=self.open_create_event_window)
+            create_event_button = tk.Button(self.header_frame, text="Create Event", font=self.controller.header_font, bg="#CC4709", fg="white", command=self.open_create_event_window)
             create_event_button.pack(side="right", padx=10)
         
         elif role == 'student':
-            apply_org_button = tk.Button(self.header_frame, text="Apply as Organization", font=self.controller.header_font, bg=self.controller.utrgv_gray, fg="white", command=self.open_org_application)
+            apply_org_button = tk.Button(self.header_frame, text="Apply as Organization", font=self.controller.header_font, bg="#CC4709", fg="white", command=self.open_org_application)
             apply_org_button.pack(side="right", padx=10)
 
 
