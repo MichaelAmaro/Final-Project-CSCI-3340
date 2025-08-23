@@ -27,6 +27,13 @@
                 <span class="value">{{ event.location }}</span>
               </div>
             </div>
+            
+            <!-- RSVP Count -->
+            <div class="mt-2">
+              <span class="text-muted">
+                <i class="fas fa-users"></i> {{ event.rsvp_count }} attending
+              </span>
+            </div>
           </div>
         </article>
     {% endfor %}

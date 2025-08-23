@@ -1,36 +1,71 @@
 {% extends "blog/base.html" %}
 {% block content %}
-  <article class="media content-section">
-    <img class="rounded-circle article-img" src="{{ object.author.profile.image.url }}">
-    <div class="media-body">
-      <div class="article-metadata">
-        <a class="mr-2" href="#">{{ object.author }}</a>
-      </div>
-      <h2 class="article-title">{{ object.title }}</h2>
-      <p class="article-content">{{ object.description }}</p>
-      <div class="event-details">
-        <h5>✨ Event Details ✨</h5>
-        <div class="event-detail-item">
-          <span class="event-detail-icon">📅</span>
-          <span class="event-detail-label">Date:</span>
-          <span class="event-detail-value">{{ object.event_date|date:"F d, Y" }}</span>
+    <article class="media content-section">
+      <img class = "rounded-circle article-img" src="{{ object.author.profile.image.url }}">
+        <div class="media-body">
+          <div class="article-metadata">
+            <a class="mr-2" href="{% url 'user-events' object.author.username %}">{{ object.author }}</a>
+            <small class="text-muted">{{ object.date_posted|date:"F d, Y" }}</small>
+            {% if object.author == user %}
+              <div>
+                <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'event-update' object.id %}">Update</a>
+                <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'event-delete' object.id %}">Delete</a>
+              </div>
+            {% endif %}
+          </div>
+          <h2 class="article-title">{{ object.title }}</h2>
+          <p class="article-content">{{ object.description }}</p>
+          
+          <!-- Event Details -->
+          <div class="event-details">
+            <h5>Event Information</h5>
+            <div class="event-detail-item">
+              <span class="event-detail-icon">📅</span>
+              <span class="event-detail-label">Date:</span>
+              <span class="event-detail-value">{{ object.event_date|date:"F d, Y" }}</span>
+            </div>
+            <div class="event-detail-item">
+              <span class="event-detail-icon">🕐</span>
+              <span class="event-detail-label">Time:</span>
+              <span class="event-detail-value">{{ object.event_time|time:"g:i A" }}</span>
+            </div>
+            <div class="event-detail-item">
+              <span class="event-detail-icon">📍</span>
+              <span class="event-detail-label">Location:</span>
+              <span class="event-detail-value">{{ object.location }}</span>
+            </div>
+          </div>
+          
+          <!-- RSVP Section -->
+          {% if user.is_authenticated %}
+            <div class="rsvp-section mt-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  {% if is_rsvpd %}
+                    <span class="badge badge-success">✓ You're attending!</span>
+                  {% else %}
+                    <span class="badge badge-secondary">Not attending</span>
+                  {% endif %}
+                  <span class="ml-2 text-muted">{{ rsvp_count }} attending</span>
+                </div>
+                <form method="post" action="{% url 'toggle-rsvp' object.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn {% if is_rsvpd %}btn-outline-danger{% else %}btn-success{% endif %} btn-sm">
+                    {% if is_rsvpd %}
+                      Cancel RSVP
+                    {% else %}
+                      RSVP
+                    {% endif %}
+                  </button>
+                </form>
+              </div>
+            </div>
+          {% else %}
+            <div class="rsvp-section mt-3">
+              <p class="text-muted">Please <a href="{% url 'login' %}">login</a> to RSVP to this event.</p>
+              <span class="text-muted">{{ rsvp_count }} attending</span>
+            </div>
+          {% endif %}
         </div>
-        <div class="event-detail-item">
-          <span class="event-detail-icon">🕐</span>
-          <span class="event-detail-label">Time:</span>
-          <span class="event-detail-value">{{ object.event_time|time:"g:i A" }}</span>
-        </div>
-        <div class="event-detail-item">
-          <span class="event-detail-icon">📍</span>
-          <span class="event-detail-label">Location:</span>
-          <span class="event-detail-value">{{ object.location }}</span>
-        </div>
-      </div>
-      {% if object.author == user %}
-        <div class="text-right mt-3">
-          <a class="btn btn-danger btn-sm" href="{% url 'event-delete' object.id %}">Delete</a>
-        </div>
-      {% endif %}
-    </div>
-  </article>
+      </article>
 {% endblock content %}

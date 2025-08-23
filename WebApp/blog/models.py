@@ -17,6 +17,27 @@ class Event(models.Model): # inheriting from the models.Model class
     
     def get_absolute_url(self):
         return reverse('event-detail', kwargs={'pk': self.pk}) #full path as a string
+    
+    def rsvp_count(self):
+        """Return the number of RSVPs for this event"""
+        return self.rsvp_set.count()
+    
+    def is_user_rsvpd(self, user):
+        """Check if a user has RSVP'd to this event"""
+        if user.is_authenticated:
+            return self.rsvp_set.filter(user=user).exists()
+        return False
+
+class RSVP(models.Model): 
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    date_rsvpd = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['user', 'event']  # Prevent duplicate RSVPs for the same user and event
+    
+    def __str__(self):
+        return f'{self.user.username} RSVP\'d to {self.event.title}'
 
 
 

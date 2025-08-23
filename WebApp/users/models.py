@@ -25,5 +25,5 @@ class Profile(models.Model):
                     img.thumbnail(output_size)
                     img.save(self.image.path)
             except Exception as e:
-                # If there's an error processing the image, just continue
+                # If there's an error processing the image, just continue 
                 pass
