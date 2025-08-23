@@ -3,6 +3,9 @@ Help UTRGV students discover campus events, register, and optionally get paired 
 
 <img width="1440" height="900" alt="Screenshot 2025-08-23 at 2 32 02 PM" src="https://github.com/user-attachments/assets/690792e7-02e7-422b-8989-357424d66679" />
 
+Members: 
+Luciana Flores
+Michael Amaro
 
 # Project overview
 Desktop App - developed by Michael Amaro
