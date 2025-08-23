@@ -13,9 +13,10 @@ It lets you:
 
 
 # Project overview
-    Desktop App - developed by Michael Amaro
-        Programming languages: Python, Tkinter 
-        
+Desktop App - developed by Michael Amaro
+-   programming languages: Python, Tkinter 
+-   database: .db (sqlite3)      
+
 
 # Running Code
 
