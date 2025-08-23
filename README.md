@@ -1,6 +1,7 @@
 #  Spotlight
 Help UTRGV students discover campus events, register, and optionally get paired with a buddy to attend together.
 
+<img width="1440" height="900" alt="Screenshot 2025-08-23 at 2 32 02 PM" src="https://github.com/user-attachments/assets/690792e7-02e7-422b-8989-357424d66679" />
 
 
 # Project overview
@@ -31,25 +32,20 @@ WebApp
 - **User Registration & Login**:  
 - **User Profiles**:  
 - **Password Management**: 
-
-### Event Management
 - **Create Events**:  
 - **Event Details**:  
 - **Event Editing**:  
 - **Event Deletion**: 
-
-### RSVP System
 - **RSVP to Events**:  
 - **RSVP Tracking**:  
 - **Duplicate Prevention**:  
 - **RSVP Count**: 
-
-### Pages & Templates
 - **Home Page**:  
 - **Event Detail**:  
 - **My Events**:  
 - **User Posts**:  
 - **Profile Pages**:  
+
 
 
 ## File Structure
