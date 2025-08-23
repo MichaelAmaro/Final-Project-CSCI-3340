@@ -11,6 +11,12 @@ It lets you:
 - Get reminders so you never miss the fun.
 - The goal: Boost student engagement, and make new friends.
 
+
+# Project overview
+    Desktop App - developed by Michael Amaro
+        Programming languages: Python, Tkinter 
+        
+
 # Running Code
 
 Desktop App
