@@ -16,8 +16,6 @@ WebApp - developed by Luciana Flores
 -   programming languages: Python, Django, HTML, CSS
 -   database: SQLite3 (db.sqlite3)
 -   framework: Django 5.2.5
--   features: User authentication, event management, RSVP system, responsive design
-
 
 # Running Code
 
@@ -27,7 +25,7 @@ Desktop App
 
 WebApp
 - Python 3.8+ installed
-- Virtual environment (recommended)
+- Virtual environment
 
 
 ## WebApp Features
